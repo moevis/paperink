@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -168,7 +169,10 @@ internal fun ConnectSheet(
         onDispose { client.stopScan() }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        dragHandle = { SheetHandle() },
+    ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("选择打印机", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -275,6 +279,26 @@ internal fun ConnectSheet(
             }
             Spacer(Modifier.height(18.dp))
         }
+    }
+}
+
+/**
+ * 顶部的抓手。
+ *
+ * Material 3 默认的把手是 32×4dp 的一小段，只有上下各留了 22dp 的空白撑高度——
+ * 横向仍然只有 32dp 能点。想「点把手收起面板」得瞄得挺准，一不留神就点空。
+ *
+ * 所以外面再包一层铺满 sheet 宽度的盒子：小白条还是居中那一小段（样子不变），
+ * 但整条顶栏都是触发区，点哪儿都能收起，也随便从哪儿往下拖。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SheetHandle() {
+    Box(
+        Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        BottomSheetDefaults.DragHandle()
     }
 }
 
