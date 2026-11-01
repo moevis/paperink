@@ -87,7 +87,9 @@ internal fun ParamBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ParamCell("字号", Presets.sizeLabels[sizeIndex], Lucide.Type, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.sizeLabels, sizeIndex) { onSize(it); done() }
+                ChoiceRow(Presets.sizeLabels, sizeIndex, subLabels = Presets.sizeHints) {
+                    onSize(it); done()
+                }
             }
             ParamCell("纸宽", Presets.widthLabels[widthIndex], Lucide.Ruler, Modifier.weight(1f)) { done ->
                 // 毫米是纸的买法，点数是喂给打印头的实际列数——换纸为什么整篇会重排，
@@ -100,11 +102,15 @@ internal fun ParamBar(
                 ) { onWidth(it); done() }
             }
             // 只影响独行的 $$…$$；行内公式跟正文同号，不跟着变
-            ParamCell("公式", Presets.sizeLabels[mathIndex], Lucide.Sigma, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.sizeLabels, mathIndex) { onMath(it); done() }
+            ParamCell("公式", Presets.mathLabels[mathIndex], Lucide.Sigma, Modifier.weight(1f)) { done ->
+                ChoiceRow(Presets.mathLabels, mathIndex, subLabels = Presets.mathHints) {
+                    onMath(it); done()
+                }
             }
             ParamCell("行距", Presets.lineLabels[lineIndex], Lucide.Rows3, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.lineLabels, lineIndex) { onLine(it); done() }
+                ChoiceRow(Presets.lineLabels, lineIndex, subLabels = Presets.lineHints) {
+                    onLine(it); done()
+                }
             }
             ParamCell("浓度", "$threshold", Lucide.Droplet, Modifier.weight(1f)) {
                 // 竖着摆：面板要窄不要宽，横滑块会把弹出框撑成一条长条。
