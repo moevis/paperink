@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PaperPrint"
+rootProject.name = "paperink"
 include(":app")

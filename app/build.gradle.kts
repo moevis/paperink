@@ -1,25 +1,50 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// 发布签名。keystore.properties 只存在于打包者本机（已在 .gitignore 里），
+// 开源仓库里没有它——此时 release 会产出未签名 APK，debug 照常能装。
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "com.paperang.mdprint"
+    namespace = "io.github.moevis.paperink"
     compileSdk = 36
-    buildToolsVersion = "35.0.0"
 
     defaultConfig {
-        applicationId = "com.paperang.mdprint"
+        applicationId = "io.github.moevis.paperink"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -32,6 +57,11 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    sourceSets {
+        // 内置示例只有一份，就放在仓库根的 samples/，直接当 asset 根目录用。
+        // 以前是复制一份到 assets/docs 再打包，两边迟早会改歪一个。
+        getByName("main").assets.srcDir(rootProject.file("samples"))
     }
     packaging {
         resources.excludes.add("META-INF/*")
@@ -47,28 +77,28 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.11.0")
 
-    // Markdown 解析用 commonmark（纯 Java，无 Android 依赖），渲染两边各自写。
+    // Markdown 解析。渲染是自己写的（见 render/PrintRenderer.kt），
+    // commonmark 只负责把文本切成块和行内元素，没有 Android 依赖。
     implementation("org.commonmark:commonmark:0.24.0")
     implementation("org.commonmark:commonmark-ext-gfm-tables:0.24.0")
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.24.0")
 
-    // 公式排版：JLaTeXMath 的 Android 移植（GPL v2，自用无碍；若要上架需整个 App 开源）。
-    // 分式/根号/上下标/数学轴线/衬线斜体全部由引擎排，替掉原来手写的盒模型
-    // （MathBoxes / RuleSpan，已删）。字号 setSize 收像素（PIXELS_PER_POINT 默认 1.0）。
+    // 公式排版：JLaTeXMath 的 Android 移植。分式、根号、上下标、数学轴线、
+    // 衬线斜体全部由引擎排，我们不自己算盒模型。
+    // 协议是 GPL-2.0 **带 Classpath 例外**，可以被本 App 链接而不传染；
+    // 但 APK 里确实带着这份 GPL 代码，README 的「第三方」一节写明了。
     implementation("ru.noties:jlatexmath-android:0.2.0")
+
+    // 图标：Lucide（ISC），24 栅格 / 2 描边，线条笔触跟正文最接近。
+    // 没用 material-icons-extended：那个 aar 有 34MB，且全是实心字形。
+    implementation("com.composables:icons-lucide:1.1.0")
 
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
-
-    // 图标：Lucide（MIT，1500+ 个线条图标，24 栅格 / 2 描边）。
-    // 为什么不用官方的：material-icons-extended 的 aar 有 34MB 且全是实心字形，
-    // 跟这套偏「纸上铅字」的排版打架；material-icons-core 只有 40 个基础图标，
-    // 打印机 / 蓝牙 / 文件这些一个都没有。Lucide 是线条描边，笔触跟正文最接近。
-    implementation("com.composables:icons-lucide:1.1.0")
 }
 
-// 与 CFA 工程同样的约束：compileSdk 36 + AGP 8.13 只能配 compose 1.10.0，
-// 新版的 activity / 传递依赖会把 compose 顶到 1.12（要求 compileSdk 37）。
+// compileSdk 36 + AGP 8.13 这组版本只能配 Compose 1.10.0；再新的 activity
+// 或传递依赖会把 compose 顶到 1.12，而 1.12 要求 compileSdk 37。
 val composeLock = setOf(
     "androidx.compose.runtime",
     "androidx.compose.ui",

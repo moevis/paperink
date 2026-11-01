@@ -4,13 +4,21 @@ build/
 .kotlin/
 local.properties
 
+# 发布签名（只在本机，绝不入库）
+keystore.properties
+*.jks
+*.keystore
+
 # IDE
 .idea/
 *.iml
 .DS_Store
 
-# 逆向材料：官方 APK 与解包（300M+，只作本地对照，不进版本库）
+# 逆向材料：官方 APK 与解包（300M+，只作本地协议对照）
 /re/
 
 # 工具侧项目数据（会话记录、截图缓存）
 .workbuddy/
+
+# 开发过程的截图与设计对照（历史里留了一份，仓库不跟）
+/review/
