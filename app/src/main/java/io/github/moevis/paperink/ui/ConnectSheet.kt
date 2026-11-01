@@ -61,6 +61,7 @@ import io.github.moevis.paperink.bt.Found
 import io.github.moevis.paperink.bt.Link
 import io.github.moevis.paperink.bt.PrinterClient
 import io.github.moevis.paperink.bt.Transport
+import io.github.moevis.paperink.bt.looksLikePrinter
 
 /** 连上了是绿的，没连是灰的——全 App 只有这一个绿。 */
 private val ConnectedGreen = Color(0xFF3BA55D)
@@ -323,7 +324,7 @@ private fun SheetHandle() {
 @Composable
 private fun DeviceGlyph(name: String, size: Dp = 16.dp) {
     Icon(
-        if (PrinterClient.looksLikePrinter(name)) Lucide.Printer else Lucide.Bluetooth,
+        if (looksLikePrinter(name)) Lucide.Printer else Lucide.Bluetooth,
         contentDescription = null,
         modifier = Modifier.size(size),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
