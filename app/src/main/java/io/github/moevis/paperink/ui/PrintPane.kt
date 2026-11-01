@@ -65,8 +65,35 @@ import io.github.moevis.paperink.R
 import io.github.moevis.paperink.render.PrintResult
 
 /**
+ * 「这份稿子有多长」的角标。
+ *
+ * 贴在预览纸的右上角，而不是浮在页面顶上。浮在顶上的时候它得占一条，
+ * 稿子就得往下让一截，看着像被挤开了——角标是这张纸的信息，就该长在纸上。
+ *
+ * 纸永远是白的（浅色主题下也是白纸黑字），所以底色不能跟着主题走：
+ * 浅色主题的 surfaceContainerHighest 跟白纸几乎同色，角标会糊进纸里。
+ * 这里固定用深色半透明牌 + 白字，两种主题是同一个读法。
+ * 留一点透明是刻意的——角标压在纸上，底下的字还得认得出个大概。
+ */
+@Composable
+private fun LengthBadge(text: String, modifier: Modifier = Modifier) {
+    Text(
+        // 只报「打完有多长」这一个数。曾经还并排显示「1335 行」，那是位图高度
+        // 按 300dpi 折算的点行数——二十来行的稿子也报四位数，读者无从校核。
+        // 点数跟纸宽绑死（57mm→576、68mm→720、79mm→864），也挪到纸宽面板里了。
+        text,
+        fontSize = 11.sp,
+        color = Color(0xFFF4F2EC),
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xE61B1B18))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+/**
  * 打印预览页。整页只有一样东西是「内容」：那张位图。
- * 其余全是浮层——顶部一行尺寸、底部一排参数，滚动时让路，不占排版宽度。
+ * 其余全是浮层——底部一排参数，滚动时让路，不占排版宽度。
  */
 @Composable
 internal fun PrintPane(
@@ -103,8 +130,9 @@ internal fun PrintPane(
     // 长按没有可点的反馈，靠这一下震动告诉用户「抓到了」
     val pressSource = remember { MutableInteractionSource() }
 
-    // 两个浮层都跟着滚动让路：往下看稿子时收起，一往上翻就回来。
+    // 底部那排参数跟着滚动让路：往下看稿子时收起，一往上翻就回来。
     // 默认可见——稿子不满一屏时根本滚不动，等于常驻。
+    // （长度角标不在这一组里：它长在纸上，本来就跟着纸一起滚。）
     var barsShown by remember { mutableStateOf(true) }
 
     LaunchedEffect(scroll) {
@@ -119,8 +147,8 @@ internal fun PrintPane(
         }
     }
 
-    // 浮层不占布局，得自己把内容垫开：顶部让开信息条，底部让开工具栏，
-    // 否则稿子的第一行和最后一行永远压在浮层底下。
+    // 浮层不占布局，得自己把内容垫开：底部让开工具栏，
+    // 否则稿子的最后一行永远压在浮层底下。
     var barHeight by remember { mutableStateOf(58.dp) }
     val density = LocalDensity.current
 
@@ -138,13 +166,17 @@ internal fun PrintPane(
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(Modifier.fillMaxWidth()) {
-                Spacer(Modifier.height(48.dp))
+                // 以前顶上留 48dp 给浮层角标。角标挪进图片右上角之后这行不需要了，
+                // 稿子能贴着页签排，多出来的全是内容区。
+                Spacer(Modifier.height(10.dp))
                 when {
                     rendering -> Column(
                         Modifier.fillMaxWidth().padding(top = 30.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.height(12.dp))
+                        LengthBadge(stringResource(R.string.preview_desc_rendering, desc))
                     }
                     result == null -> Text(
                         stringResource(R.string.preview_rendering),
@@ -152,73 +184,53 @@ internal fun PrintPane(
                         color = cs.onSurfaceVariant,
                         modifier = Modifier.padding(top = 30.dp),
                     )
-                    else -> Image(
-                        bitmap = result.bitmap.asImageBitmap(),
-                        contentDescription = previewDesc,
-                        contentScale = ContentScale.FillWidth,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onGloballyPositioned { origin = it.positionInWindow() }
-                            // 只旁观按下点，不消费事件——消费了 down，整块预览就再也滚不动了
-                            .pointerInput(Unit) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val e = awaitPointerEvent(PointerEventPass.Initial)
-                                        if (e.type == PointerEventType.Press) {
-                                            e.changes.firstOrNull()?.let { pressLocal = it.position }
+                    // 图片和角标包在同一层 Box 里：角标跟着图走，不占排版位置，
+                    // 也不会像浮层那样在滚动时被单独收走。
+                    else -> Box(Modifier.fillMaxWidth()) {
+                        Image(
+                            bitmap = result.bitmap.asImageBitmap(),
+                            contentDescription = previewDesc,
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { origin = it.positionInWindow() }
+                                // 只旁观按下点，不消费事件——消费了 down，整块预览就再也滚不动了
+                                .pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val e = awaitPointerEvent(PointerEventPass.Initial)
+                                            if (e.type == PointerEventType.Press) {
+                                                e.changes.firstOrNull()?.let { pressLocal = it.position }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            .border(1.dp, cs.outlineVariant)
-                            .background(Color.White)
-                            .combinedClickable(
-                                interactionSource = pressSource,
-                                // 点一下预览什么也不做，铺一层模糊的涟漪只会碍眼
-                                indication = null,
-                                onLongClickLabel = saveLabel,
-                                onLongClick = {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    saveAt = origin + pressLocal
-                                },
-                                onClick = {},
-                            ),
-                    )
+                                .border(1.dp, cs.outlineVariant)
+                                .background(Color.White)
+                                .combinedClickable(
+                                    interactionSource = pressSource,
+                                    // 点一下预览什么也不做，铺一层模糊的涟漪只会碍眼
+                                    indication = null,
+                                    onLongClickLabel = saveLabel,
+                                    onLongClick = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        saveAt = origin + pressLocal
+                                    },
+                                    onClick = {},
+                                ),
+                        )
+                        LengthBadge(
+                            text = buildString {
+                                append("%.1f cm".format(result.lengthMm / 10f))
+                                if (result.truncated) append(truncatedLabel)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp),
+                        )
+                    }
                 }
                 Spacer(Modifier.height(barHeight + 12.dp))
-            }
-        }
-
-        // 「这份稿子有多长」——一行小字压在预览顶上，不再单独占一行高度
-        Box(Modifier.align(Alignment.TopCenter)) {
-            AnimatedVisibility(
-                visible = barsShown,
-                enter = slideInVertically(animationSpec = tween(220)) { -it } + fadeIn(tween(160)),
-                exit = slideOutVertically(animationSpec = tween(220)) { -it } + fadeOut(tween(160)),
-            ) {
-                Text(
-                    // 只报「打完有多长」这一个数。曾经还并排显示「1335 行」，那是位图高度
-                    // 按 300dpi 折算的点行数——二十来行的稿子也报四位数，读者无从校核。
-                    // 点数跟纸宽绑死（57mm→576、68mm→720、79mm→864），也挪到纸宽面板里了。
-                    if (result == null) {
-                        stringResource(R.string.preview_desc_rendering, desc)
-                    } else {
-                        buildString {
-                            append("%.1f cm".format(result.lengthMm / 10f))
-                            if (result.truncated) append(truncatedLabel)
-                        }
-                    },
-                    fontSize = 11.5.sp,
-                    color = cs.onSurfaceVariant,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .clip(RoundedCornerShape(50))
-                        // 试过 0.78 / 0.88 / 0.94 / 0.96：白纸上的黑字只要透出 4%，
-                        // 在深灰底上就是 10 级灰度差，字形看得一清二楚，糊成一团脏点。
-                        // 半透明在这儿行不通——「浮起来」靠形状和阴影表达，颜色必须压实。
-                        .background(cs.surfaceContainerHighest)
-                        .padding(horizontal = 12.dp, vertical = 5.dp),
-                )
             }
         }
 
