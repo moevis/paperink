@@ -93,12 +93,15 @@ Markdown text
    ▼
 Doc
    │  render/LayoutBuilder.kt   block layout: where every piece goes
+   │  render/TableLayout.kt     column-width negotiation for tables
    │  render/InlineSpans.kt     inline markup → styled text
    │  render/JlmMath.kt         hands formulas to JLaTeXMath
-   │  render/PrintRenderer.kt   draws, binarises, packs the rows
+   │  render/Rasterizer.kt      draws the bands, thresholds, packs the rows
+   │  render/PrintRenderer.kt   orchestrates the three steps above
    ▼
 Monochrome bitmap (576 / 720 / 864 dots wide)
-   │  bt/PrinterClient.kt       connects and identifies the protocol
+   │  bt/ProtocolProbe.kt       identifies the protocol, handshakes, asks for paper sizes
+   │  bt/PrinterClient.kt       connects, then routes the page to the right printer
    │  bt/print/                 one file per protocol
    ▼
 Thermal printer
@@ -219,12 +222,15 @@ Markdown 文本
    ▼
 Doc
    │  render/LayoutBuilder.kt   块级排版：每块摆哪儿
+   │  render/TableLayout.kt     表格的列宽协商
    │  render/InlineSpans.kt     行内标记 → 带样式的一段文字
    │  render/JlmMath.kt         公式交给 JLaTeXMath
-   │  render/PrintRenderer.kt   画字、二值化、按行打包
+   │  render/Rasterizer.kt      分带画字、二值化、按行打包
+   │  render/PrintRenderer.kt   把上面三步串起来
    ▼
 单色位图（576 / 720 / 864 点宽）
-   │  bt/PrinterClient.kt       连机器、认协议
+   │  bt/ProtocolProbe.kt       认协议、握手、问纸型
+   │  bt/PrinterClient.kt       连机器，把整页交给对应的打印流程
    │  bt/print/                 一套协议一个文件
    ▼
 热敏打印机
