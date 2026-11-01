@@ -5,9 +5,6 @@ import android.bluetooth.BluetoothDevice
 /** 打印链路用哪套传输，由 [PrinterClient] 探测决定。 */
 enum class Transport { BLE, SPP }
 
-/** 打印链路用哪套协议，由 [PrinterClient] 探测决定。 */
-enum class Kind { NONE, PAPERANG, CAT, ESCPOS }
-
 /** 当前连接状态。UI 只看这个对象。 */
 data class Link(
     val connected: Boolean = false,

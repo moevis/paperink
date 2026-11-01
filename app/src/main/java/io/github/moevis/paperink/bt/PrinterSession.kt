@@ -14,9 +14,12 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * 分工上它管的是「现在连的是什么、打印机有什么脾气」：
  *  - [link] 是 UI 唯一看的连接状态；
- *  - [kind] / [a5Mode] / [devMaxLen] 等是握手之后才知道的设备能力；
- *  - [writeFrame] 是唯一的出口，BLE 与 SPP 走各自的链路，但外面看到的是同一个接口；
+ *  - [protocol] 与下面的几个能力字段，都是握手之后才知道的；
+ *  - [writeFrame] 是唯一的出口，BLE 与 SPP 各走各的链路，外面看到的是同一个接口；
  *  - [exchange] 是「发一帧、等一条回包」，探测协议、问版本、问纸型都走它。
+ *
+ * 两条链路（[gatt] / [spp]）是内部细节：打印流程只问 [maxPayload]，
+ * 不该知道现在是 BLE 还是串口。
  */
 internal class PrinterSession(ctx: Context) {
 
@@ -33,13 +36,9 @@ internal class PrinterSession(ctx: Context) {
     /** 经典蓝牙链路。 */
     val spp = SppLink()
 
-    /** 探测出来的协议族。 */
+    /** 认出来的协议。null = 还没认出来（刚连上 / 正在握手）。 */
     @Volatile
-    var kind: Kind = Kind.NONE
-
-    /** 握手确认走 A5 帧族（P3 MAX 实测就是它），打印流程与 0x02 私有帧完全不同。 */
-    @Volatile
-    var a5Mode: Boolean = false
+    var protocol: DeviceProtocol? = null
 
     /** A5 单包最大字节数，由打印机自报（P3 MAX 实测 1944）。 */
     @Volatile
@@ -66,6 +65,21 @@ internal class PrinterSession(ctx: Context) {
 
     private var replyGate: CompletableDeferred<ByteArray>? = null
 
+    /** 当前是不是 BLE 链路。 */
+    val isBle: Boolean get() = _link.value.transport == Transport.BLE
+
+    /**
+     * 这条链路一次能写多少字节。
+     *
+     * BLE 的 `writeCharacteristic` 一包只能塞 MTU-3 个字节，超了写不进去；
+     * 串口是一条字节流，没有这个上限。
+     *
+     * 放在会话上而不是让打印流程去读 [gatt]：走串口时 `gatt.mtu` 还停留在
+     * 默认的 23，直接读它会让分包莫名其妙缩到 20 字节。
+     */
+    val maxPayload: Int
+        get() = if (_link.value.transport == Transport.SPP) Int.MAX_VALUE else gatt.mtu - 3
+
     init {
         gatt.onBytes = { consume(it) }
         spp.onBytes = { consume(it) }
@@ -86,7 +100,7 @@ internal class PrinterSession(ctx: Context) {
     private fun consume(value: ByteArray) {
         Log.i(TAG, "rx " + value.joinToString(" ") { "%02X".format(it) })
         // 打印时的流控：打印机每收一包就回一条 05 1B 应答，靠它决定何时发下一包
-        if (a5Mode && value.isNotEmpty() && value[0] == 0xA5.toByte()) {
+        if (protocol == DeviceProtocol.A5 && value.isNotEmpty() && value[0] == 0xA5.toByte()) {
             for (r in Protocol.A5.parse(value, value.size)) {
                 if (r.group == Protocol.A5.GROUP_PRINT) a5Ack.incrementAndGet()
             }
@@ -119,7 +133,7 @@ internal class PrinterSession(ctx: Context) {
         replyGate = gate
         // BLE 的往返比 SPP 慢一个数量级（实测同一句 A5 版本查询：SPP 约 30ms、
         // BLE 约 2s），照 SPP 的 1 秒档等必然错过回包、把 A5 机误判成别的协议。
-        val wait = if (_link.value.transport == Transport.BLE) timeoutMs * 3 else timeoutMs
+        val wait = if (isBle) timeoutMs * 3 else timeoutMs
         return try {
             writeFrame(frame, await = false)
             withTimeoutOrNull(wait) { gate.await() }

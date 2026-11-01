@@ -7,6 +7,7 @@ import android.content.Context
 import android.util.Log
 import io.github.moevis.paperink.R
 import io.github.moevis.paperink.bt.print.PrintEngine
+import io.github.moevis.paperink.bt.print.PrintJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -21,10 +22,11 @@ import java.io.IOException
  * 底下分成四块，各管各的：
  *  - [BluetoothScanner] 找附近的设备（BLE 广播 + 系统配对记录）
  *  - [PrinterSession] 一次连接的状态与收发中转（[GattLink] / [SppLink] 是两条腿）
- *  - [ProtocolProbe] 认协议、A5 握手、问纸型
+ *  - [ProtocolProbe] 认协议、握手、问纸型
  *  - `bt/print/` 四种协议各自的打印流程
  *
- * 这里只留编排：先连哪条腿、连上之后按什么协议握手、打印时走哪条流程。
+ * 这里只留编排：先连哪条腿、打印时把活交给谁。认机器与握手已经沉到
+ * [ProtocolProbe.identify]——那是「协议」的事，不是「连接」的事。
  */
 @SuppressLint("MissingPermission")
 class PrinterClient(private val ctx: Context) {
@@ -32,8 +34,9 @@ class PrinterClient(private val ctx: Context) {
     companion object {
         private const val TAG = "Paperang"
 
-        /** 猫猫机单行字节数（384 点 / 8），老机型固定这个宽度。 */
-        const val ROW_BYTES = 48
+        /** 指定串口时重试几次。这类机器第一次连常失败，多半是上一个 socket 还没散干净。 */
+        private const val SPP_ATTEMPTS = 3
+        private const val SPP_RETRY_GAP_MS = 900L
     }
 
     private val bluetooth = BluetoothScanner(ctx)
@@ -79,70 +82,31 @@ class PrinterClient(private val ctx: Context) {
             disconnectQuiet()
             val name = try { device.name } catch (e: SecurityException) { null } ?: device.address
 
-            /** 腿接上了，接下来认协议、握手。 */
-            suspend fun switchedOn(t: Transport) {
-                session.setLink(Link(true, name, t, null))
-                lastAddress = device.address
-                session.kind = if (t == Transport.BLE) {
-                    ProtocolProbe.detect(session)
+            /** 接通一条链路，接着认协议、握手。握手失败也照样算连通——能读状态也是连着。 */
+            suspend fun linkUp(transport: Transport): Boolean {
+                val up = if (transport == Transport.BLE) {
+                    session.gatt.connect(device)
                 } else {
-                    Kind.PAPERANG
+                    session.spp.connect(device)
                 }
-
-                /** 问一句 A5 版本：答话的就是 A5 机（P3 MAX 属于这一类）。 */
-                suspend fun adoptA5(): Boolean {
-                    if (!ProtocolProbe.handshakeA5(session)) return false
-                    session.kind = Kind.PAPERANG
-                    session.a5Mode = true
-                    session.devMaxLen = ProtocolProbe.queryMaxLen(session)
-                    ProtocolProbe.readSupportSize(session)
-                    ProtocolProbe.readTpInfo(session)
-                    Log.i(
-                        TAG,
-                        "A5 握手成功 fw=${session.fwVersion} maxLen=${session.devMaxLen} " +
-                            "paper=${session.paperSizes} tp=${session.tpInfo}"
-                    )
-                    return true
-                }
-
-                if (session.kind == Kind.PAPERANG) {
-                    if (!adoptA5()) {
-                        // 老机型：复位 CRC 密钥（payload = 0 XOR standardKey），之后帧 CRC 初值为 0
-                        runCatching { session.writeFrame(Protocol.setCrcKeyFrame()) }
-                        delay(150)
-                        runCatching {
-                            session.writeFrame(Protocol.frame(Protocol.Cmd.GET_BAT_STATUS, Protocol.u8(1)))
-                        }
-                    }
-                }
-
-                // detect() 在谁都不答话时按「可写特征所属服务」猜协议，ff00 会被猜成
-                // ESC/POS；而 P3 MAX 恰恰就用 ff00/ff02 这一族，于是整台 A5 机被当成
-                // ESC/POS，打出去的一千多包光栅帧它一句不认（实测：走完进度条，一张
-                // 纸没出）。所以猜完之后一律再问一句 A5，答话的以 A5 为准。
-                if (session.kind != Kind.PAPERANG && adoptA5()) {
-                    Log.w(TAG, "特征先验猜错，补测到 A5，已改按 A5 处理")
-                }
+                if (!up) return false
+                session.setLink(Link(true, name, transport, null))
+                lastAddress = device.address
+                ProtocolProbe.identify(session, transport)
+                return true
             }
 
             // 指定串口就只认串口：这类机型只有 SPP 能打印，降级到 BLE 等于白连
             if (prefer == Transport.SPP) {
-                repeat(3) { i ->
-                    if (session.spp.connect(device)) {
-                        switchedOn(Transport.SPP)
-                        return@withLock true
-                    }
-                    if (i < 2) delay(900)
+                repeat(SPP_ATTEMPTS) { i ->
+                    if (linkUp(Transport.SPP)) return@withLock true
+                    if (i < SPP_ATTEMPTS - 1) delay(SPP_RETRY_GAP_MS)
                 }
-                Log.w(TAG, "SPP 三次都失败，退回 BLE（只能读状态，不能打印）")
+                Log.w(TAG, "SPP $SPP_ATTEMPTS 次都失败，退回 BLE（只能读状态，不能打印）")
             }
 
             for (t in listOf(Transport.BLE, Transport.SPP)) {
-                val ok = if (t == Transport.BLE) session.gatt.connect(device) else session.spp.connect(device)
-                if (ok) {
-                    switchedOn(t)
-                    return@withLock true
-                }
+                if (linkUp(t)) return@withLock true
             }
             session.setLink(Link())
             false
@@ -153,17 +117,9 @@ class PrinterClient(private val ctx: Context) {
         session.setLink(Link())
     }
 
-    /**
-     * 发一整页位图。
-     * @param packed PrintRenderer 打好的位图数据（1=黑），每行 [bytesPerRow] 字节
-     * @param rows 行数
-     */
+    /** 发一整页位图。 */
     suspend fun printImage(
-        packed: ByteArray,
-        rows: Int,
-        bytesPerRow: Int,
-        feedDots: Int = 260,
-        chunkDelayMs: Long = 10,
+        job: PrintJob,
         onProgress: (Float) -> Unit = {},
     ): Result<Unit> = withContext(Dispatchers.IO) {
         if (session.link.value.transport == null) {
@@ -172,9 +128,7 @@ class PrinterClient(private val ctx: Context) {
             )
         }
         try {
-            PrintEngine.print(
-                session, packed, rows, bytesPerRow, feedDots, chunkDelayMs, onProgress
-            )
+            PrintEngine.print(session, job, onProgress)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

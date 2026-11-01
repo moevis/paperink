@@ -13,45 +13,51 @@ import kotlinx.coroutines.delay
  *  - 位图用 GS v 0，整幅高度一次发，不分 255 行块
  *  - 每包之间要限速，发太快打印头只打几行就停
  */
-internal suspend fun printEscPosRaster(
-    session: PrinterSession,
-    packed: ByteArray,
-    rows: Int,
-    bytesPerRow: Int,
-    onProgress: (Float) -> Unit,
-) {
-    val chunk = minOf(182, maxOf(20, session.gatt.mtu - 3))
+internal object EscPosPrint : PrintProtocol {
 
-    writeRaw(session, EscPos.init())
-    delay(80)
-    writeRaw(session, EscPos.vendorInit(0x04))
-    delay(80)
+    /** 文档里实测的上限：再大打印头就跟不上了。 */
+    private const val MAX_CHUNK = 182
 
-    writeRaw(session, EscPos.rasterHeader(bytesPerRow, rows))
-    delay(40)
+    /** 一包之间至少留这么久，快过它打印头只打几行就停。 */
+    private const val CHUNK_GAP_MS = 26L
 
-    val total = packed.size
-    var off = 0
-    while (off < total) {
-        val n = minOf(chunk, total - off)
-        writeRaw(session, packed.copyOfRange(off, off + n))
-        off += n
-        onProgress(off.toFloat() / total)
-        // 30ms 左右是文档给的实测安全值；固定延时比赌 BLE 栈缓冲可靠
-        delay(26)
+    override suspend fun print(
+        session: PrinterSession,
+        job: PrintJob,
+        onProgress: (Float) -> Unit,
+    ) {
+        val chunk = minOf(MAX_CHUNK, maxOf(20, session.maxPayload))
+
+        writeRaw(session, EscPos.init())
+        delay(80)
+        writeRaw(session, EscPos.vendorInit(0x04))
+        delay(80)
+
+        writeRaw(session, EscPos.rasterHeader(job.bytesPerRow, job.rows))
+        delay(40)
+
+        val total = job.packed.size
+        var off = 0
+        while (off < total) {
+            val n = minOf(chunk, total - off)
+            writeRaw(session, job.packed.copyOfRange(off, off + n))
+            off += n
+            onProgress(progressOf(off, total))
+            delay(CHUNK_GAP_MS)
+        }
+
+        delay(120)
+        writeRaw(session, EscPos.feedLines(4))
+        // 固件在最后一个字节后约 2 秒才走完纸，提前断开最后几行会不打
+        delay(1_800)
+        onProgress(1f)
     }
 
-    delay(120)
-    writeRaw(session, EscPos.feedLines(4))
-    // 固件在最后一个字节后约 2 秒才走完纸，提前断开最后几行会不打
-    delay(1_800)
-    onProgress(1f)
-}
-
-/** 不走帧格式的裸写：ESC/POS 是纯字节流，没有包头包尾。 */
-private suspend fun writeRaw(session: PrinterSession, data: ByteArray) {
-    for (c in EscPos.chunk(data, maxOf(20, session.gatt.mtu - 3))) {
-        session.writeFrame(c, await = false)
-        delay(2)
+    /** 不走帧格式的裸写：ESC/POS 是纯字节流，没有包头包尾。 */
+    private suspend fun writeRaw(session: PrinterSession, data: ByteArray) {
+        for (c in EscPos.chunk(data, maxOf(20, session.maxPayload))) {
+            session.writeFrame(c, await = false)
+            delay(2)
+        }
     }
 }
