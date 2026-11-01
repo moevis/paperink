@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  前景：纸卷 + 出纸带。
+
+  内容占中心 60dp（不是 66）——真机上按 66 来，纸带的齿会正好压在安全圈上，
+  上下只剩 3dp 留白，看着像被裁了一刀。收到 60 之后四周各留 6dp，圆形遮罩下也松快。
+
+  纸带和圆是两块同色图形直接叠的，不做布尔合并——重叠部分同色，视觉上是一个形，
+  但省掉一次路径求并，路径也短得多。纸带顶端从 y=46.88（圆心高度）起画，
+  被上面的圆盖住，连接处自然无缝。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 纸卷外圆：圆心 (54, 46.88)，半径 22.9 -->
+    <path
+        android:fillColor="#F4F2EC"
+        android:pathData="M31.1,46.88 a22.9,22.9 0 1,0 45.8,0 a22.9,22.9 0 1,0 -45.8,0 Z" />
+
+    <!-- 出纸带：宽 19.62，底边三齿撕口（齿尖 y=83.98，齿谷 y=80.05） -->
+    <path
+        android:fillColor="#F4F2EC"
+        android:pathData="M44.19,46.88 V83.98 L49.12,80.05 L54,83.98 L58.88,80.05 L63.81,83.98 V46.88 Z" />
+
+    <!-- 纸芯：半径 10.45 -->
+    <path
+        android:fillColor="#AB473E"
+        android:pathData="M43.55,46.88 a10.45,10.45 0 1,0 20.9,0 a10.45,10.45 0 1,0 -20.9,0 Z" />
+</vector>

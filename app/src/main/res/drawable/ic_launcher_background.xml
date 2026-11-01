@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标底：暖深灰 #2F2E2A。
+
+  不用纯黑（#1B1B18）——在深色桌面上纯黑底会和桌面糊成一片，只剩一张白纸浮着，
+  看不出图标边界。这个灰是和纸色对比 12:1，够深，但比桌面亮一档。
+
+  形状取自一张 AI 生成稿的几何测量，纸卷 + 出纸带的比例按原图 1:1 还原
+  （外圆 ⌀50.2，纸带宽 21.5，三齿撕口）。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#2F2E2A"
+        android:pathData="M0,0h108v108h-108z" />
+</vector>

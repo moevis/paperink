@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 13 主题图标用的单色层：系统只取 alpha 通道，按壁纸取色。
+
+  纸芯那条要镂空，所以外圆走 evenOdd（内圆自动挖洞），纸带另起一条——
+  如果把它也塞进同一个 evenOdd 路径，和圆重叠的那段会被当成「洞」挖掉。
+  纸带顶端从 y=66 起（此时外圆半宽 12.6 > 纸带半宽 9.81，落在圆内，接得上），
+  又远低于内圆底 57.33，不会碰到镂空区。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M31.1,46.88 a22.9,22.9 0 1,0 45.8,0 a22.9,22.9 0 1,0 -45.8,0 Z M43.55,46.88 a10.45,10.45 0 1,0 20.9,0 a10.45,10.45 0 1,0 -20.9,0 Z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44.19,66 V83.98 L49.12,80.05 L54,83.98 L58.88,80.05 L63.81,83.98 V66 Z" />
+</vector>
