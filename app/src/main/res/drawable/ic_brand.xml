@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  应用内的品牌图标（顶栏左上角用）。
+
+  跟桌面上的自适应图标是同一套图形：纸卷 + 出纸带 + 红纸芯，
+  但重排到 24dp 的小方块里——桌面图标按 108dp 栅格做，是因为要适配各种遮罩；
+  塞进标题栏就只需要"看得清是什么"，不需要留安全圈。
+
+  底下垫一块深灰方块（#2F2E2A）：纸卷是米色 #F4F2EC，浅色主题的顶栏是白的，
+  去掉底板就只剩一团白；留着底板，明暗两种主题下这块图标都有边界。
+
+  几何来自 ic_launcher_foreground.xml（108 栅格）：外圆 ⌀45.8、纸带宽 19.62、
+  三齿撕口、纸芯 ⌀20.9。整体缩到 0.283 倍后在 24 栅格里居中：
+  圆心 (12, 10)，半径 6.5；纸带 x 9.2~14.76，齿尖 y 20.48、齿谷 y 19.37。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 底板：圆角方块（桌面图标由系统裁形状，标题栏里得自己带圆角） -->
+    <path
+        android:fillColor="#2F2E2A"
+        android:pathData="M6,0 H18 A6,6 0 0,1 24,6 V18 A6,6 0 0,1 18,24 H6 A6,6 0 0,1 0,18 V6 A6,6 0 0,1 6,0 Z" />
+
+    <!-- 纸卷外圆 -->
+    <path
+        android:fillColor="#F4F2EC"
+        android:pathData="M12,10 m-6.5,0 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 Z" />
+
+    <!-- 出纸带：底边三齿撕口，顶端被圆盖住，接缝自然无缝 -->
+    <path
+        android:fillColor="#F4F2EC"
+        android:pathData="M9.2,9.98 V20.48 L10.6,19.37 L11.98,20.48 L13.36,19.37 L14.76,20.48 V9.98 Z" />
+
+    <!-- 纸芯 -->
+    <path
+        android:fillColor="#AB473E"
+        android:pathData="M12,10 m-2.95,0 a2.95,2.95 0 1,0 5.9,0 a2.95,2.95 0 1,0 -5.9,0 Z" />
+</vector>

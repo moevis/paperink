@@ -2,9 +2,11 @@ package io.github.moevis.paperink.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,15 +39,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Printer
 import io.github.moevis.paperink.Prefs
+import io.github.moevis.paperink.R
 import io.github.moevis.paperink.bt.PrinterClient
 import io.github.moevis.paperink.bt.Transport
 import io.github.moevis.paperink.file.IMPORT_MIME_TYPES
@@ -233,7 +238,19 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
         snackbarHost = { SnackbarHost(snack) },
         topBar = {
             TopAppBar(
-                title = { Text("纸印", fontWeight = FontWeight.Bold) },
+                title = {
+                    // 品牌图标放左上角，标题跟在右边。桌面图标是系统的，这里得自己摆一份，
+                    // 不然 App 里一点自己的痕迹都没有，像个网页套壳。
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_brand),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(Modifier.width(9.dp))
+                        Text("纸印", fontWeight = FontWeight.Bold)
+                    }
+                },
                 actions = {
                     // 打印是唯一的主操作，直接放右上角。底栏那行「已连接 XXX / 已就绪」
                     // 跟顶栏胶囊说的是同一件事，整条删掉了。
