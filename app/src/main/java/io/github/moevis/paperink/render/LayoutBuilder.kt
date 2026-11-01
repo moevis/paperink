@@ -139,6 +139,7 @@ internal class LayoutBuilder(
                 is Block.Code -> code(blk)
                 is Block.Math -> mathBlock(blk)
                 is Block.Rule -> rule()
+                // 表格是所有块里最讲究的一个（要协商列宽），单独一个文件：[TableLayout.kt]
                 is Block.Table -> table(blk)
             }
         }

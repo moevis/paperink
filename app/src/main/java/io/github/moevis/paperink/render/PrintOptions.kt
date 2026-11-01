@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 /**
  * 打印参数。宽度单位是「点」= 热敏头像素。
  * P3 MAX 是三档纸自适应的 300dpi 机型：57mm→576、68mm→720、79mm→864，
- * 具体取哪档由 `PrinterClient.paperSizes` 决定，偏移也走那张表。
+ * 具体取哪档由打印机自报的纸型表（`PrinterSession.paperSizes`）决定，偏移也走那张表。
  */
 data class PrintOptions(
     val widthDots: Int = 576,
