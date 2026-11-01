@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  应用支持的语言。Android 13+ 会把它显示在「设置 → 应用 → 纸印 → 语言」里，
+  用户可以给这个应用单独选语言，不用改系统语言；更低的版本就跟随系统语言。
+
+  顺序无所谓，系统按用户选的来；列全是为了让"每个 App 语言"菜单里能看到两项。
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh" />
+</locale-config>

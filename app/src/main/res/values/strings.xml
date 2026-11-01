@@ -1,4 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  界面文案。默认这一份是英文：任何没单独翻译的语言都落到这儿，
+  对开源仓库来说，英文兜底比中文兜底合理（README 里也是英文在前）。
+
+  values-zh/ 放中文。用户手机是中文就自动是中文界面，不用在 App 里加开关。
+  想手动切：Android 13+ 系统设置 → 应用 → 纸印 → 语言。
+-->
 <resources>
-    <string name="app_name">纸印</string>
+    <string name="app_name">PaperInk</string>
+
+    <!-- 顶栏与页签 -->
+    <string name="tab_edit">Edit</string>
+    <string name="tab_preview">Print preview</string>
+    <string name="action_print">Print</string>
+
+    <!-- 连接胶囊 -->
+    <string name="not_connected">Not connected</string>
+    <string name="connected">Connected</string>
+
+    <!-- 编辑页 -->
+    <string name="action_import">Import file</string>
+    <string name="action_samples">Samples</string>
+    <string name="editor_empty_title">Paste Markdown here…</string>
+    <string name="editor_empty_hint">Headings, lists, tables, code blocks and quotes are supported.\nImport a text or Markdown file below, or start from a sample.</string>
+
+    <!-- 示例 -->
+    <string name="sample_powers_title">Properties of Powers</string>
+    <string name="sample_powers_desc">Three names, seven properties, zero and negative exponents</string>
+    <string name="sample_fractions_title">Fraction Arithmetic</string>
+    <string name="sample_fractions_desc">Reciprocals, products, quotients, sums, reduction, mixed numbers</string>
+    <string name="sample_formulas_title">Formula Typesetting Test</string>
+    <string name="sample_formulas_desc">Fractions, radicals, sub/superscripts, nested formulas</string>
+    <string name="sample_read_failed">Can\'t read this sample</string>
+
+    <!-- 打印预览 -->
+    <string name="preview_rendering">Rendering…</string>
+    <string name="preview_desc_rendering">%1$s · rendering</string>
+    <string name="preview_truncated"> · truncated</string>
+    <string name="preview_content_desc">Print preview</string>
+    <string name="action_save_image">Save image</string>
+
+    <!-- 参数栏 -->
+    <!-- 参数栏每格只有 60dp 宽，英文词超过 6 个字母就会被截成 "Form…" -->
+    <string name="param_size">Size</string>
+    <string name="param_width">Width</string>
+    <string name="param_math">Math</string>
+    <string name="param_line">Space</string>
+    <string name="param_density">Ink</string>
+    <string name="param_bold">Bold</string>
+    <string name="value_on">On</string>
+    <string name="value_off">Off</string>
+    <string name="width_dots">%1$d dots</string>
+
+    <!-- 连接面板 -->
+    <string name="sheet_title">Choose a printer</string>
+    <string name="sheet_show_all">Show all</string>
+    <string name="sheet_paperang_only">Paperang only</string>
+    <string name="sheet_disconnect">Disconnect</string>
+    <string name="sheet_paired">Paired devices</string>
+    <string name="sheet_scanning">Scanning…</string>
+    <string name="sheet_none_found">No devices found</string>
+    <string name="toast_no_bt_permission">Bluetooth permission is required to scan</string>
+    <string name="toast_enable_bt">Turn on Bluetooth first</string>
+    <string name="toast_no_bt">This device has no Bluetooth</string>
+
+    <!-- 提示条 -->
+    <string name="msg_write_something">Write something first</string>
+    <string name="msg_connect_first">Connect a printer first</string>
+    <string name="msg_typesetting">Typesetting…</string>
+    <string name="msg_sending_lines">Sending %1$d lines</string>
+    <string name="msg_printing">Printing %1$d%%</string>
+    <string name="msg_saving">Saving…</string>
+    <string name="msg_connecting">Connecting to %1$s</string>
+    <string name="msg_connected">Connected to %1$s</string>
+    <string name="msg_connect_failed">Connection failed. Wake the printer and try again.</string>
+    <string name="msg_print_done">Done. Tear off the paper.</string>
+    <string name="msg_print_failed">Print failed: %1$s</string>
+    <string name="msg_disconnected">Disconnected</string>
+    <string name="msg_saved_to">Saved to %1$s</string>
+    <string name="msg_imported">Imported %1$d characters</string>
+    <string name="msg_imported_named">Imported %1$s (%2$d characters)</string>
+    <string name="msg_read_failed">Can\'t read this file</string>
+    <string name="msg_empty_file">No printable text in this file</string>
+    <string name="msg_too_big">File over 4 MB. One roll won\'t fit — split it up.</string>
+    <string name="msg_keep_printer_on">Keep the printer on; don\'t switch apps.</string>
+    <string name="desc_blocks">%1$d blocks</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="err_not_connected">Printer not connected</string>
+
+    <!-- 参数档位：数字是主角，副标题只说感觉 -->
+    <string-array name="size_labels">
+        <item>22 pt</item>
+        <item>26 pt</item>
+        <item>31 pt</item>
+    </string-array>
+    <string-array name="size_hints">
+        <item>S</item>
+        <item>M</item>
+        <item>L</item>
+    </string-array>
+    <string-array name="math_labels">
+        <item>1.3×</item>
+        <item>1.5×</item>
+        <item>1.65×</item>
+    </string-array>
+    <string-array name="math_hints">
+        <item>S</item>
+        <item>M</item>
+        <item>L</item>
+    </string-array>
+    <string-array name="line_labels">
+        <item>0.88×</item>
+        <item>1.00×</item>
+        <item>1.12×</item>
+    </string-array>
+    <string-array name="line_hints">
+        <item>Tight</item>
+        <item>Normal</item>
+        <item>Loose</item>
+    </string-array>
 </resources>

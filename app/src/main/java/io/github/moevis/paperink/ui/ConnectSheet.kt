@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -55,6 +56,7 @@ import com.composables.icons.lucide.BluetoothConnected
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Printer
 import com.composables.icons.lucide.Unplug
+import io.github.moevis.paperink.R
 import io.github.moevis.paperink.bt.Found
 import io.github.moevis.paperink.bt.Link
 import io.github.moevis.paperink.bt.PrinterClient
@@ -76,6 +78,8 @@ internal fun ConnectChip(
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val notConnected = stringResource(R.string.not_connected)
+    val connectedLabel = stringResource(R.string.connected)
     Row(
         // 右侧留白跟标题的左内边距（16dp）对齐：⋯ 菜单撤掉后，胶囊就成了最后一个元素
         Modifier
@@ -96,9 +100,9 @@ internal fun ConnectChip(
         Spacer(Modifier.width(7.dp))
         Text(
             when {
-                !connected -> "未连接"
+                !connected -> notConnected
                 else -> buildString {
-                    append(name?.take(12) ?: "已连接")
+                    append(name?.take(12) ?: connectedLabel)
                     battery?.let { append(" · $it%") }
                 }
             },
@@ -122,6 +126,10 @@ internal fun ConnectSheet(
 ) {
     val ctx = LocalContext.current
     val cs = MaterialTheme.colorScheme
+    // Toast 要用 Context 取文案，先在组合作用域里备好，回调里直接用
+    val noBt = ctx.getString(R.string.toast_no_bt)
+    val enableBt = ctx.getString(R.string.toast_enable_bt)
+    val noBtPermission = ctx.getString(R.string.toast_no_bt_permission)
     var all by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
     val found by client.found.collectAsState()
@@ -133,17 +141,17 @@ internal fun ConnectSheet(
             client.startScan(all)
             scanning = true
         } else {
-            Toast.makeText(ctx, "没有蓝牙权限就没法扫描", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, noBtPermission, Toast.LENGTH_LONG).show()
         }
     }
 
     fun beginScan() {
         if (client.scanner == null) {
-            Toast.makeText(ctx, "这台设备没有蓝牙", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, noBt, Toast.LENGTH_LONG).show()
             return
         }
         if (!client.enabled) {
-            Toast.makeText(ctx, "请先打开蓝牙", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, enableBt, Toast.LENGTH_LONG).show()
             return
         }
         val need = if (Build.VERSION.SDK_INT >= 31) {
@@ -175,12 +183,17 @@ internal fun ConnectSheet(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("选择打印机", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.sheet_title), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
                     all = !all
                     client.startScan(all)
-                }) { Text(if (all) "只看喵喵机" else "显示全部") }
+                }) {
+                    Text(
+                        if (all) stringResource(R.string.sheet_paperang_only)
+                        else stringResource(R.string.sheet_show_all)
+                    )
+                }
             }
             // 连接状态与「断开连接」都归这里：没连时这一行根本不存在，
             // 也就不会出现「没连上还能点断开」这种不成立的操作。
@@ -197,7 +210,7 @@ internal fun ConnectSheet(
                     Box(Modifier.size(7.dp).background(ConnectedGreen, CircleShape))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        link.name ?: "已连接",
+                        link.name ?: stringResource(R.string.connected),
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -211,7 +224,7 @@ internal fun ConnectSheet(
                             tint = cs.error,
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text("断开连接", fontSize = 13.sp, color = cs.error)
+                        Text(stringResource(R.string.sheet_disconnect), fontSize = 13.sp, color = cs.error)
                     }
                 }
             }
@@ -225,14 +238,15 @@ internal fun ConnectSheet(
                     if (scanning) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        if (scanning) "正在扫描…" else "没找到设备",
+                        if (scanning) stringResource(R.string.sheet_scanning)
+                        else stringResource(R.string.sheet_none_found),
                         fontSize = 13.sp,
                         color = cs.onSurfaceVariant,
                     )
                 }
                 val bonded = remember { client.bondedDevices() }
                 if (bonded.isNotEmpty()) {
-                    Text("已配对设备", fontSize = 12.5.sp, color = cs.onSurfaceVariant)
+                    Text(stringResource(R.string.sheet_paired), fontSize = 12.5.sp, color = cs.onSurfaceVariant)
                     // 面板放不下太多行：配对记录多于两三台时底下几行会顶出屏幕点不到
                     // （P3 MAX 恰好排在第五个），所以这里独立滚动，别让它够不着。
                     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {

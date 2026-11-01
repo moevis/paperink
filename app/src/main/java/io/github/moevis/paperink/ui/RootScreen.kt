@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -87,6 +88,17 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     val view = LocalView.current
     val link by client.link.collectAsState()
 
+    // 回调里不能再调 stringResource（那要在组合作用域里），固定文案先在这里备好。
+    // 带参数的提示在回调里用 ctx.getString 取——Activity 的资源跟着应用语言走。
+    val msgWriteSomething = stringResource(R.string.msg_write_something)
+    val msgConnectFirst = stringResource(R.string.msg_connect_first)
+    val msgTypesetting = stringResource(R.string.msg_typesetting)
+    val msgPrintDone = stringResource(R.string.msg_print_done)
+    val msgDisconnected = stringResource(R.string.msg_disconnected)
+    val msgConnectFailed = stringResource(R.string.msg_connect_failed)
+    val msgKeepPrinterOn = stringResource(R.string.msg_keep_printer_on)
+    val undoLabel = stringResource(R.string.action_undo)
+
     var md by remember {
         mutableStateOf(incoming?.takeIf { it.isNotBlank() } ?: prefs.text)
     }
@@ -127,7 +139,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
         scope.launch {
             val r = snack.showSnackbar(
                 message = m,
-                actionLabel = "撤销",
+                actionLabel = undoLabel,
                 duration = SnackbarDuration.Long,
             )
             if (r == SnackbarResult.ActionPerformed) onUndo()
@@ -145,22 +157,26 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
             ctx.contentResolver.openInputStream(uri)?.use { readCapped(it, MAX_IMPORT_BYTES) }
         }.getOrNull()
         if (bytes == null || bytes.isEmpty()) {
-            say("读不出这个文件")
+            say(ctx.getString(R.string.msg_read_failed))
             return@rememberLauncherForActivityResult
         }
         if (bytes.size > MAX_IMPORT_BYTES) {
-            say("文件超过 4 MB，一卷纸印不完，先拆开吧")
+            say(ctx.getString(R.string.msg_too_big))
             return@rememberLauncherForActivityResult
         }
         val text = decodeText(bytes)
         if (text.isBlank()) {
-            say("这个文件里没有能打印的字")
+            say(ctx.getString(R.string.msg_empty_file))
             return@rememberLauncherForActivityResult
         }
         val was = md
         md = text
         result = null
-        val msg = if (name.isNullOrBlank()) "已导入 ${text.length} 字" else "已导入 $name（${text.length} 字）"
+        val msg = if (name.isNullOrBlank()) {
+            ctx.getString(R.string.msg_imported, text.length)
+        } else {
+            ctx.getString(R.string.msg_imported_named, name, text.length)
+        }
         if (was.isBlank()) say(msg) else sayUndo(msg) { md = was; result = null }
     }
 
@@ -168,7 +184,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     fun requireLink(): Boolean {
         if (link.connected) return true
         sheet = true
-        say("先连上打印机")
+        say(msgConnectFirst)
         return false
     }
 
@@ -222,15 +238,15 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     }
 
     fun print() {
-        if (md.isBlank()) { say("先写点东西"); return }
+        if (md.isBlank()) { say(msgWriteSomething); return }
         if (!requireLink()) return
-        runTask("正在排版") {
+        runTask(msgTypesetting) {
             val r = ensureRendered()
-            task = Task(0f, "正在发送 ${r.rows} 行")
+            task = Task(0f, ctx.getString(R.string.msg_sending_lines, r.rows))
             val res = client.printImage(r.packed, r.rows, r.bytesPerRow) { p ->
-                task = Task(p, "正在打印 ${(p * 100).roundToInt()}%")
+                task = Task(p, ctx.getString(R.string.msg_printing, (p * 100).roundToInt()))
             }
-            say(res.fold({ "打印完成，撕纸吧" }, { "打印失败：${it.message}" }))
+            say(res.fold({ msgPrintDone }, { ctx.getString(R.string.msg_print_failed, it.message) }))
         }
     }
 
@@ -248,7 +264,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                             modifier = Modifier.size(24.dp),
                         )
                         Spacer(Modifier.width(9.dp))
-                        Text("纸印", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
@@ -269,7 +285,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                                 modifier = Modifier.size(15.dp),
                             )
                             Spacer(Modifier.width(5.dp))
-                            Text("打印", fontSize = 13.sp)
+                            Text(stringResource(R.string.action_print), fontSize = 13.sp)
                         }
                         Spacer(Modifier.width(2.dp))
                     }
@@ -280,7 +296,10 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             TabRow(selectedTabIndex = tab) {
-                listOf("编辑", "打印预览").forEachIndexed { i, t ->
+                listOf(
+                    stringResource(R.string.tab_edit),
+                    stringResource(R.string.tab_preview),
+                ).forEachIndexed { i, t ->
                     Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
                 }
             }
@@ -294,7 +313,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                 else -> PrintPane(
                     result = result,
                     rendering = rendering,
-                    desc = "${doc.blocks.size} 个块",
+                    desc = stringResource(R.string.desc_blocks, doc.blocks.size),
                     threshold = threshold,
                     onThreshold = { threshold = it; prefs.threshold = it },
                     dilate = dilate,
@@ -308,9 +327,9 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                     widthIndex = widthIndex,
                     onWidth = { widthIndex = it; prefs.widthIndex = it },
                     onSavePng = {
-                        runTask("正在保存") {
+                        runTask(ctx.getString(R.string.msg_saving)) {
                             val f = savePng(ctx, ensureRendered().bitmap)
-                            say("已存到 ${f.absolutePath}")
+                            say(ctx.getString(R.string.msg_saved_to, f.absolutePath))
                         }
                     },
                 )
@@ -328,15 +347,18 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
             onDisconnect = {
                 sheet = false
                 client.disconnect()
-                say("已断开连接")
+                say(msgDisconnected)
             },
             onPick = { f, t ->
                 sheet = false
                 scope.launch {
-                    task = Task(0f, "正在连接 ${f.name}")
+                    task = Task(0f, ctx.getString(R.string.msg_connecting, f.name))
                     val ok = client.connect(f.device, t)
                     task = null
-                    say(if (ok) "已连接 ${f.name}" else "连接失败，试着唤醒打印机再重试")
+                    say(
+                        if (ok) ctx.getString(R.string.msg_connected, f.name)
+                        else msgConnectFailed
+                    )
                 }
             },
         )
@@ -346,7 +368,13 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
         val cs = MaterialTheme.colorScheme
         AlertDialog(
             onDismissRequest = { samples = false },
-            title = { Text("示例", fontSize = 17.sp, fontWeight = FontWeight.SemiBold) },
+            title = {
+                Text(
+                    stringResource(R.string.action_samples),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            },
             text = {
                 Column(Modifier.fillMaxWidth()) {
                     BUILT_IN.forEach { smp ->
@@ -355,17 +383,25 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                                 .fillMaxWidth()
                                 .clickable {
                                     samples = false
-                                    loadSample(ctx, smp.path) { md = it; result = null; tab = 0 }
+                                    loadSample(ctx, smp.file) { md = it; result = null; tab = 0 }
                                 }
                                 .padding(vertical = 11.dp)
                         ) {
-                            Text(smp.title, fontSize = 15.sp)
-                            Text(smp.desc, fontSize = 11.5.sp, color = cs.onSurfaceVariant)
+                            Text(stringResource(smp.title), fontSize = 15.sp)
+                            Text(
+                                stringResource(smp.desc),
+                                fontSize = 11.5.sp,
+                                color = cs.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { samples = false }) { Text("取消") } },
+            confirmButton = {
+                TextButton(onClick = { samples = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
     }
 
@@ -382,7 +418,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "保持打印机开着，别切到别的 App。",
+                        msgKeepPrinterOn,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -17,6 +17,7 @@ import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import io.github.moevis.paperink.R
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -590,7 +591,11 @@ class PrinterClient(private val ctx: Context) {
         chunkDelayMs: Long = 10,
         onProgress: (Float) -> Unit = {},
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        if (_link.value.transport == null) return@withContext Result.failure(IOException("未连接打印机"))
+        if (_link.value.transport == null) {
+            return@withContext Result.failure(
+                IOException(ctx.getString(R.string.err_not_connected))
+            )
+        }
         try {
             when {
                 proto == Kind.CAT -> printCat(packed, rows, bytesPerRow, feedDots, chunkDelayMs, onProgress)

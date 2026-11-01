@@ -53,6 +53,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,6 +61,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Lucide
+import io.github.moevis.paperink.R
 import io.github.moevis.paperink.render.PrintResult
 
 /**
@@ -87,6 +89,10 @@ internal fun PrintPane(
 ) {
     val cs = MaterialTheme.colorScheme
     val scroll = rememberScrollState()
+    // 这三句在长按回调和图片描述里都要用，先在组合作用域里取出来
+    val saveLabel = stringResource(R.string.action_save_image)
+    val previewDesc = stringResource(R.string.preview_content_desc)
+    val truncatedLabel = stringResource(R.string.preview_truncated)
 
     // 长按预览图 → 在原地弹一个「保存图片」。位置记窗口坐标（不是图片内坐标），
     // 因为浮层是独立的窗口，跟滚动容器不共用一个坐标系，滚动时也不会跟着漂。
@@ -141,14 +147,14 @@ internal fun PrintPane(
                         CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
                     }
                     result == null -> Text(
-                        "生成中…",
+                        stringResource(R.string.preview_rendering),
                         fontSize = 13.sp,
                         color = cs.onSurfaceVariant,
                         modifier = Modifier.padding(top = 30.dp),
                     )
                     else -> Image(
                         bitmap = result.bitmap.asImageBitmap(),
-                        contentDescription = "打印预览",
+                        contentDescription = previewDesc,
                         contentScale = ContentScale.FillWidth,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -170,7 +176,7 @@ internal fun PrintPane(
                                 interactionSource = pressSource,
                                 // 点一下预览什么也不做，铺一层模糊的涟漪只会碍眼
                                 indication = null,
-                                onLongClickLabel = "保存图片",
+                                onLongClickLabel = saveLabel,
                                 onLongClick = {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     saveAt = origin + pressLocal
@@ -194,10 +200,13 @@ internal fun PrintPane(
                     // 只报「打完有多长」这一个数。曾经还并排显示「1335 行」，那是位图高度
                     // 按 300dpi 折算的点行数——二十来行的稿子也报四位数，读者无从校核。
                     // 点数跟纸宽绑死（57mm→576、68mm→720、79mm→864），也挪到纸宽面板里了。
-                    if (result == null) "$desc · 排版中"
-                    else buildString {
-                        append("%.1f cm".format(result.lengthMm / 10f))
-                        if (result.truncated) append(" · 已截断")
+                    if (result == null) {
+                        stringResource(R.string.preview_desc_rendering, desc)
+                    } else {
+                        buildString {
+                            append("%.1f cm".format(result.lengthMm / 10f))
+                            if (result.truncated) append(truncatedLabel)
+                        }
                     },
                     fontSize = 11.5.sp,
                     color = cs.onSurfaceVariant,
@@ -265,7 +274,7 @@ internal fun PrintPane(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "保存图片",
+                            saveLabel,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = cs.onSurface,

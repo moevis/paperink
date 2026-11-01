@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -54,6 +56,7 @@ import com.composables.icons.lucide.Rows3
 import com.composables.icons.lucide.Ruler
 import com.composables.icons.lucide.Sigma
 import com.composables.icons.lucide.Type
+import io.github.moevis.paperink.R
 import kotlin.math.roundToInt
 
 /**
@@ -73,6 +76,14 @@ internal fun ParamBar(
     dilate: Boolean, onDilate: (Boolean) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    // 档位标签随语言走：数字是主角，"小/中/大"退到面板里的副标题
+    val sizeLabels = stringArrayResource(R.array.size_labels)
+    val sizeHints = stringArrayResource(R.array.size_hints)
+    val mathLabels = stringArrayResource(R.array.math_labels)
+    val mathHints = stringArrayResource(R.array.math_hints)
+    val lineLabels = stringArrayResource(R.array.line_labels)
+    val lineHints = stringArrayResource(R.array.line_hints)
+    val widthDots = widthDotLabels()
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -86,33 +97,27 @@ internal fun ParamBar(
             Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ParamCell("字号", Presets.sizeLabels[sizeIndex], Lucide.Type, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.sizeLabels, sizeIndex, subLabels = Presets.sizeHints) {
-                    onSize(it); done()
-                }
+            ParamCell(stringResource(R.string.param_size), sizeLabels[sizeIndex], Lucide.Type, Modifier.weight(1f)) { done ->
+                ChoiceRow(sizeLabels, sizeIndex, subLabels = sizeHints) { onSize(it); done() }
             }
-            ParamCell("纸宽", Presets.widthLabels[widthIndex], Lucide.Ruler, Modifier.weight(1f)) { done ->
+            ParamCell(stringResource(R.string.param_width), Presets.widthLabels[widthIndex], Lucide.Ruler, Modifier.weight(1f)) { done ->
                 // 毫米是纸的买法，点数是喂给打印头的实际列数——换纸为什么整篇会重排，
                 // 靠这行小字才解释得通。跟着选项一起摆，比在顶部常驻一句"864 点"有用。
                 ChoiceRow(
                     labels = Presets.widthLabels,
                     selected = widthIndex,
                     fontSize = 12.sp,
-                    subLabels = Array(Presets.widths.size) { "${Presets.widths[it]} 点" },
+                    subLabels = widthDots,
                 ) { onWidth(it); done() }
             }
             // 只影响独行的 $$…$$；行内公式跟正文同号，不跟着变
-            ParamCell("公式", Presets.mathLabels[mathIndex], Lucide.Sigma, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.mathLabels, mathIndex, subLabels = Presets.mathHints) {
-                    onMath(it); done()
-                }
+            ParamCell(stringResource(R.string.param_math), mathLabels[mathIndex], Lucide.Sigma, Modifier.weight(1f)) { done ->
+                ChoiceRow(mathLabels, mathIndex, subLabels = mathHints) { onMath(it); done() }
             }
-            ParamCell("行距", Presets.lineLabels[lineIndex], Lucide.Rows3, Modifier.weight(1f)) { done ->
-                ChoiceRow(Presets.lineLabels, lineIndex, subLabels = Presets.lineHints) {
-                    onLine(it); done()
-                }
+            ParamCell(stringResource(R.string.param_line), lineLabels[lineIndex], Lucide.Rows3, Modifier.weight(1f)) { done ->
+                ChoiceRow(lineLabels, lineIndex, subLabels = lineHints) { onLine(it); done() }
             }
-            ParamCell("浓度", "$threshold", Lucide.Droplet, Modifier.weight(1f)) {
+            ParamCell(stringResource(R.string.param_density), "$threshold", Lucide.Droplet, Modifier.weight(1f)) {
                 // 竖着摆：面板要窄不要宽，横滑块会把弹出框撑成一条长条。
                 // 数值压在滑块**顶上**（原来在右边）——滑块本身就是「上浓下淡」的刻度，
                 // 数值贴在它头上，眼睛不用在横向来回扫，拖动时也只盯一个点。
@@ -140,7 +145,8 @@ internal fun ParamBar(
             }
             // 加粗是开关，点一下直接切，不弹面板
             ToggleCell(
-                "加粗", if (dilate) "开" else "关",
+                stringResource(R.string.param_bold),
+                if (dilate) stringResource(R.string.value_on) else stringResource(R.string.value_off),
                 on = dilate,
                 modifier = Modifier.weight(1f),
                 icon = Lucide.Bold,
@@ -148,6 +154,14 @@ internal fun ParamBar(
         }
     }
 }
+
+/** 每档纸宽对应的点数（576 / 720 / 864）。取资源要带格式参数，只能一个一个取。 */
+@Composable
+private fun widthDotLabels(): Array<String> = arrayOf(
+    stringResource(R.string.width_dots, Presets.widths[0]),
+    stringResource(R.string.width_dots, Presets.widths[1]),
+    stringResource(R.string.width_dots, Presets.widths[2]),
+)
 
 /** 参数栏里带浮层的一格：整格可点，浮层锚在「字」上，所以弹出位置就在这一格正上方。 */
 @Composable

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  中文界面。键跟 values/strings.xml 一一对应。
+
+  只放 values-zh/（不带地区），所有中文地区都落这儿：简体、繁体共用一套文案，
+  这个 App 里的用词没有简繁之分，硬分 zh-rCN / zh-TW 反而要维护两份几乎一样的东西。
+-->
+<resources>
+    <string name="app_name">纸印</string>
+
+    <!-- 顶栏与页签 -->
+    <string name="tab_edit">编辑</string>
+    <string name="tab_preview">打印预览</string>
+    <string name="action_print">打印</string>
+
+    <!-- 连接胶囊 -->
+    <string name="not_connected">未连接</string>
+    <string name="connected">已连接</string>
+
+    <!-- 编辑页 -->
+    <string name="action_import">导入文件</string>
+    <string name="action_samples">示例</string>
+    <string name="editor_empty_title">在这里粘贴 Markdown…</string>
+    <string name="editor_empty_hint">支持标题、列表、表格、代码块、引用。\n底部可以导入文本或 Markdown 文件，或直接开一份示例。</string>
+
+    <!-- 示例 -->
+    <string name="sample_powers_title">幂运算的性质</string>
+    <string name="sample_powers_desc">三个名字、七条性质、零次与负指数</string>
+    <string name="sample_fractions_title">分数的计算</string>
+    <string name="sample_fractions_desc">倒数、乘除、加减、约分、带分数</string>
+    <string name="sample_formulas_title">公式排版自检</string>
+    <string name="sample_formulas_desc">分式、根式、上下标、嵌套公式</string>
+    <string name="sample_read_failed">读不到这份资料</string>
+
+    <!-- 打印预览 -->
+    <string name="preview_rendering">生成中…</string>
+    <string name="preview_desc_rendering">%1$s · 排版中</string>
+    <string name="preview_truncated"> · 已截断</string>
+    <string name="preview_content_desc">打印预览</string>
+    <string name="action_save_image">保存图片</string>
+
+    <!-- 参数栏 -->
+    <string name="param_size">字号</string>
+    <string name="param_width">纸宽</string>
+    <string name="param_math">公式</string>
+    <string name="param_line">行距</string>
+    <string name="param_density">浓度</string>
+    <string name="param_bold">加粗</string>
+    <string name="value_on">开</string>
+    <string name="value_off">关</string>
+    <string name="width_dots">%1$d 点</string>
+
+    <!-- 连接面板 -->
+    <string name="sheet_title">选择打印机</string>
+    <string name="sheet_show_all">显示全部</string>
+    <string name="sheet_paperang_only">只看喵喵机</string>
+    <string name="sheet_disconnect">断开连接</string>
+    <string name="sheet_paired">已配对设备</string>
+    <string name="sheet_scanning">正在扫描…</string>
+    <string name="sheet_none_found">没找到设备</string>
+    <string name="toast_no_bt_permission">没有蓝牙权限就没法扫描</string>
+    <string name="toast_enable_bt">请先打开蓝牙</string>
+    <string name="toast_no_bt">这台设备没有蓝牙</string>
+
+    <!-- 提示条 -->
+    <string name="msg_write_something">先写点东西</string>
+    <string name="msg_connect_first">先连上打印机</string>
+    <string name="msg_typesetting">正在排版</string>
+    <string name="msg_sending_lines">正在发送 %1$d 行</string>
+    <string name="msg_printing">正在打印 %1$d%%</string>
+    <string name="msg_saving">正在保存</string>
+    <string name="msg_connecting">正在连接 %1$s</string>
+    <string name="msg_connected">已连接 %1$s</string>
+    <string name="msg_connect_failed">连接失败，试着唤醒打印机再重试</string>
+    <string name="msg_print_done">打印完成，撕纸吧</string>
+    <string name="msg_print_failed">打印失败：%1$s</string>
+    <string name="msg_disconnected">已断开连接</string>
+    <string name="msg_saved_to">已存到 %1$s</string>
+    <string name="msg_imported">已导入 %1$d 字</string>
+    <string name="msg_imported_named">已导入 %1$s（%2$d 字）</string>
+    <string name="msg_read_failed">读不出这个文件</string>
+    <string name="msg_empty_file">这个文件里没有能打印的字</string>
+    <string name="msg_too_big">文件超过 4 MB，一卷纸印不完，先拆开吧</string>
+    <string name="msg_keep_printer_on">保持打印机开着，别切到别的 App。</string>
+    <string name="desc_blocks">%1$d 个块</string>
+    <string name="action_undo">撤销</string>
+    <string name="action_cancel">取消</string>
+    <string name="err_not_connected">未连接打印机</string>
+
+    <!-- 参数档位：数字是主角，副标题只说感觉 -->
+    <string-array name="size_labels">
+        <item>22 点</item>
+        <item>26 点</item>
+        <item>31 点</item>
+    </string-array>
+    <string-array name="size_hints">
+        <item>小</item>
+        <item>中</item>
+        <item>大</item>
+    </string-array>
+    <string-array name="math_labels">
+        <item>1.3×</item>
+        <item>1.5×</item>
+        <item>1.65×</item>
+    </string-array>
+    <string-array name="math_hints">
+        <item>小</item>
+        <item>中</item>
+        <item>大</item>
+    </string-array>
+    <string-array name="line_labels">
+        <item>0.88×</item>
+        <item>1.00×</item>
+        <item>1.12×</item>
+    </string-array>
+    <string-array name="line_hints">
+        <item>紧</item>
+        <item>中</item>
+        <item>松</item>
+    </string-array>
+</resources>
