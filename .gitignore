@@ -8,6 +8,7 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+*.jks.b64
 
 # IDE
 .idea/
