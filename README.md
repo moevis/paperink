@@ -50,7 +50,6 @@ Needs JDK 17 and Android SDK 36 (`compileSdk = 36`, `minSdk = 26`).
 git clone https://github.com/moevis/paperink.git && cd paperink
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:testDebugUnitTest      # 23 unit tests
-./scripts/check-size.sh               # no source file over 450 lines
 ```
 
 Install it on your own device:
@@ -113,15 +112,6 @@ Thermal printer
 | `ui/` | The Compose screens, one file per screen |
 | `file/` | Import encoding detection, PNG export |
 | `samples/` | Three built-in samples, packaged as assets at build time (`samples/en/` holds the English ones) |
-
-### Keeping the files small
-
-No source file is allowed to grow past **450 lines**, and CI checks it
-(`scripts/check-size.sh`, wired into the build workflow). A file that hits the
-limit is supposed to be split by responsibility — `bt/` grew from one 900-line
-class into a scanner, two links, a probe and four print protocols that way —
-rather than to keep accumulating. The point is that you can find the thing you
-are looking for without reading the whole thing first.
 
 ## Known limitations
 
@@ -189,7 +179,6 @@ Third-party components:
 git clone https://github.com/moevis/paperink.git && cd paperink
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:testDebugUnitTest      # 23 项单元测试
-./scripts/check-size.sh               # 没有源文件超过 450 行
 ```
 
 装到自己的机器上：
@@ -249,12 +238,6 @@ Doc
 | `ui/` | Compose 界面，一个文件管一屏 |
 | `file/` | 导入文件的编码探测、PNG 导出 |
 | `samples/` | 三个内置示例，构建时直接当 asset 打包（`samples/en/` 是英文版） |
-
-### 文件不许长胖
-
-任何源文件都不许超过 **450 行**，CI 会盯着（`scripts/check-size.sh`，已接进构建流程）。
-撞了上限就按职责拆开——`bt/` 就是这么从一个 900 行的类拆成扫描、两条链路、协议探测
-加四套打印指令的——而不是继续往上堆。图的是不用先通读整个文件就能找到要看的那一段。
 
 ## 已知限制
 
