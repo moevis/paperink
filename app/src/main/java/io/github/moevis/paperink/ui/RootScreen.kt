@@ -1,25 +1,18 @@
 package io.github.moevis.paperink.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -28,7 +21,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -54,11 +46,6 @@ import io.github.moevis.paperink.Prefs
 import io.github.moevis.paperink.R
 import io.github.moevis.paperink.bt.PrinterClient
 import io.github.moevis.paperink.bt.Transport
-import io.github.moevis.paperink.file.IMPORT_MIME_TYPES
-import io.github.moevis.paperink.file.MAX_IMPORT_BYTES
-import io.github.moevis.paperink.file.decodeText
-import io.github.moevis.paperink.file.displayName
-import io.github.moevis.paperink.file.readCapped
 import io.github.moevis.paperink.file.savePng
 import io.github.moevis.paperink.md.MarkdownParser
 import io.github.moevis.paperink.render.PrintOptions
@@ -79,6 +66,8 @@ private data class Task(val progress: Float, val label: String)
  * 为什么不用 ViewModel：这个界面的全部状态就是「一段文字 + 六个参数 + 一份排版结果」。
  * 进程一死就该从 SharedPreferences 恢复，没有需要跨配置变更存活的东西，
  * 引入 ViewModel 只会多一层样板。
+ *
+ * 拆出去的：对话框在 [Dialogs.kt]，文件导入在 [TextImport.kt]，参数条在 [ParamBar.kt]。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,37 +136,24 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     }
 
     // 导入文件：.txt / .md 都是纯文本，读进来灌进编辑器，顺便作废已排好的位图。
-    // 一个入口吃两种格式——它们本质是同一种东西，分两个按钮只会让人先想「我这是哪种」。
-    val importFile = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val name = displayName(ctx, uri)
-        val bytes = runCatching {
-            ctx.contentResolver.openInputStream(uri)?.use { readCapped(it, MAX_IMPORT_BYTES) }
-        }.getOrNull()
-        if (bytes == null || bytes.isEmpty()) {
-            say(ctx.getString(R.string.msg_read_failed))
-            return@rememberLauncherForActivityResult
+    val importFile = rememberTextImporter { res ->
+        when (res) {
+            is ImportResult.Ok -> {
+                val was = md
+                md = res.text
+                result = null
+                val msg = if (res.name.isNullOrBlank()) {
+                    ctx.getString(R.string.msg_imported, res.text.length)
+                } else {
+                    ctx.getString(R.string.msg_imported_named, res.name, res.text.length)
+                }
+                if (was.isBlank()) say(msg) else sayUndo(msg) { md = was; result = null }
+            }
+
+            ImportResult.ReadFailed -> say(ctx.getString(R.string.msg_read_failed))
+            ImportResult.TooBig -> say(ctx.getString(R.string.msg_too_big))
+            ImportResult.Empty -> say(ctx.getString(R.string.msg_empty_file))
         }
-        if (bytes.size > MAX_IMPORT_BYTES) {
-            say(ctx.getString(R.string.msg_too_big))
-            return@rememberLauncherForActivityResult
-        }
-        val text = decodeText(bytes)
-        if (text.isBlank()) {
-            say(ctx.getString(R.string.msg_empty_file))
-            return@rememberLauncherForActivityResult
-        }
-        val was = md
-        md = text
-        result = null
-        val msg = if (name.isNullOrBlank()) {
-            ctx.getString(R.string.msg_imported, text.length)
-        } else {
-            ctx.getString(R.string.msg_imported_named, name, text.length)
-        }
-        if (was.isBlank()) say(msg) else sayUndo(msg) { md = was; result = null }
     }
 
     /** 要连着打印机才能做的事，没连就先弹连接面板。 */
@@ -307,7 +283,7 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                 0 -> EditorPane(
                     md = md,
                     onChange = { md = it },
-                    onImport = { importFile.launch(IMPORT_MIME_TYPES) },
+                    onImport = { importFile() },
                     onSamples = { samples = true },
                 )
                 else -> PrintPane(
@@ -365,65 +341,20 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     }
 
     if (samples) {
-        val cs = MaterialTheme.colorScheme
-        AlertDialog(
-            onDismissRequest = { samples = false },
-            title = {
-                Text(
-                    stringResource(R.string.action_samples),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+        SamplesDialog(
+            onPick = { smp ->
+                samples = false
+                loadSample(ctx, smp.file) { md = it; result = null; tab = 0 }
             },
-            text = {
-                Column(Modifier.fillMaxWidth()) {
-                    BUILT_IN.forEach { smp ->
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    samples = false
-                                    loadSample(ctx, smp.file) { md = it; result = null; tab = 0 }
-                                }
-                                .padding(vertical = 11.dp)
-                        ) {
-                            Text(stringResource(smp.title), fontSize = 15.sp)
-                            Text(
-                                stringResource(smp.desc),
-                                fontSize = 11.5.sp,
-                                color = cs.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { samples = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+            onDismiss = { samples = false },
         )
     }
 
     task?.let { j ->
-        AlertDialog(
-            onDismissRequest = {},
-            confirmButton = {},
-            title = { Text(j.label) },
-            text = {
-                Column {
-                    LinearProgressIndicator(
-                        progress = { j.progress },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        msgKeepPrinterOn,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+        TaskProgressDialog(
+            label = j.label,
+            progress = j.progress,
+            note = msgKeepPrinterOn,
         )
     }
 }
