@@ -1,0 +1,172 @@
+name: release
+
+# 打一个 v* 的 tag 就发一版：
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# 也可以在 Actions 页面上手动触发（workflow_dispatch），这时用输入框里的 tag 名。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name, e.g. v1.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 发 Release 要用 tag 里的提交，得把完整历史拉下来
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check file sizes
+        run: ./scripts/check-size.sh
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Android SDK：runner 镜像自带 cmdline-tools，直接用它的 sdkmanager 装。
+      # 不用 android-actions/setup-android@v3 —— 那个 action 默认装已被下架的
+      # `tools` 包，这一步现在必然失败。
+      - name: Set up Android SDK
+        run: |
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "找不到 sdkmanager：$ANDROID_HOME/cmdline-tools 下没有这个文件" >&2
+            exit 1
+          fi
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "build-tools;36.0.0" \
+            "platform-tools"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 签名密钥。公开仓库里不可能把这个文件放进去，所以走 Actions Secrets：
+      #   KEYSTORE_BASE64 —— keystore 文件的 base64（base64 -i key.jks）
+      #   KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD —— 密钥库口令等四项
+      #
+      # 没配的话就走 debug 签名（app/build.gradle.kts 里已经兜住了），
+      # 出的包能直接装，只是签名是 debug 的。
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            cat > keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+            echo "用正式密钥签名"
+          else
+            echo "::warning::没配 KEYSTORE_BASE64，本次用 debug 签名"
+          fi
+
+      # -PpaperinkVersion 让 APK 里的版本号跟着 tag 走。
+      # 签名密钥若为真则由上面的 keystore.properties 决定，AGP 自己读。
+      - name: Build release APK
+        run: >
+          ./gradlew :app:assembleRelease
+          -PpaperinkVersion=${{ steps.ver.outputs.version }}
+          -Pandroid.builder.sdkDownload=true
+          --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          echo "APK: $APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" || {
+            echo "::warning::签名校验没通过，但包仍然会上传"
+          }
+          ls -la app/build/outputs/apk/release/
+
+      # 装到手机上会认签名；这里把包名和版本打出来，方便核对。
+      - name: Read APK manifest info
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump badging "$APK" \
+            | grep -E "^package:|^application-label:" || true
+
+      - name: Upload APK to workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: paperink-${{ steps.ver.outputs.version }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      # 发 Release。changelog 自己拼（不用 --generate-notes），
+      # 这样首个 tag 也能正常发——没有「上一个 tag」时变更列表就是空的。
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          NAME="paperink-${VERSION}.apk"
+          cp "$APK" "app/build/outputs/apk/release/$NAME"
+
+          # 变更列表：从上一个 tag 到当前 tag 的提交。
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
+          if [ -n "$PREV" ]; then
+            CHANGELOG=$(git log --pretty=format:'- %s (%h)' "${PREV}..${TAG}")
+            HEADER="本版相对 ${PREV} 的变更："
+          else
+            CHANGELOG=$(git log --pretty=format:'- %s (%h)' -20 "${TAG}")
+            HEADER="首个版本，全部提交："
+          fi
+
+          {
+            echo "纸印 PaperInk ${VERSION}"
+            echo
+            echo "下载下面的 \`${NAME}\` 装到手机上（需要允许「安装未知来源应用」）。"
+            echo
+            echo "### ${HEADER}"
+            echo
+            echo "${CHANGELOG}"
+            echo
+            echo "反馈问题请开 issue。"
+          } > release-notes.md
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG 已存在，改为更新"
+            gh release upload "$TAG" "app/build/outputs/apk/release/$NAME" --clobber
+            gh release edit "$TAG" --notes-file release-notes.md --title "纸印 PaperInk ${VERSION}"
+          else
+            gh release create "$TAG" \
+              "app/build/outputs/apk/release/$NAME" \
+              --title "纸印 PaperInk ${VERSION}" \
+              --notes-file release-notes.md
+          fi
+
+          echo "--- 发布结果 ---"
+          gh release view "$TAG" --json url,tagName,name,assets \
+            --jq '{url, tag: .tagName, name, assets: [.assets[].name]}'

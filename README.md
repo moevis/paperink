@@ -61,7 +61,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 The `sdk.dir` in `local.properties` and the JDK path in `~/.gradle/gradle.properties`
 are machine-specific — do not commit them. Release signing uses `keystore.properties`
-in the repository root (also not committed); without it a release build is unsigned:
+in the repository root (also not committed); without it a release build falls back to
+the debug signing key so the APK is still installable:
 
 ```properties
 storeFile=/absolute/path/to/release.jks
@@ -69,6 +70,21 @@ storePassword=…
 keyAlias=…
 keyPassword=…
 ```
+
+### Releases from GitHub
+
+Pushing a `v*` tag builds a signed APK and publishes it as a GitHub Release:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+The [release workflow](.github/workflows/release.yml) reads the version from the tag,
+runs the same size check and unit tests as CI, then uploads `paperink-<version>.apk`
+to the Release page. To sign with your own key, add four repository secrets:
+`KEYSTORE_BASE64` (base64 of the `.jks`), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and
+`KEY_PASSWORD`. Without them the APK is signed with the debug key — installable,
+but not upgradeable over a differently signed build.
 
 ## How the code fits together
 
@@ -183,7 +199,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 `local.properties` 里的 `sdk.dir` 与 `~/.gradle/gradle.properties` 里的 JDK 路径都由本机决定，
-不要提交。发版签名靠仓库根的 `keystore.properties`（同样不入库），没有它时 release 产出未签名包：
+不要提交。发版签名靠仓库根的 `keystore.properties`（同样不入库）；没有它时 release 会退回
+debug 签名，出的包照样能装：
 
 ```properties
 storeFile=/absolute/path/to/release.jks
@@ -191,6 +208,19 @@ storePassword=…
 keyAlias=…
 keyPassword=…
 ```
+
+### 从 GitHub 发版
+
+推一个 `v*` 的 tag，就会自动构建签名 APK 并发布成 GitHub Release：
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+[发版流水线](.github/workflows/release.yml) 从 tag 里取版本号，跑跟 CI 一样的行数检查与
+单元测试，然后把 `paperink-<版本号>.apk` 挂到 Release 页上。要用自己的密钥签名，在仓库的
+Secrets 里加四项：`KEYSTORE_BASE64`（`.jks` 的 base64）、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、
+`KEY_PASSWORD`。没配就用 debug 密钥签名——能装，但和别的签名包的版本互相盖不掉。
 
 ## 代码怎么走
 

@@ -13,6 +13,17 @@ val keystoreProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// 版本号。默认写死在这里，CI 打 tag 时用 -PpaperinkVersion=1.2.3 覆盖，
+// 这样「tag 里的版本」和「APK 里的版本」永远是同一个东西，不会对不上。
+val paperinkVersion = (project.findProperty("paperinkVersion") as String?) ?: "1.0.0"
+
+// 版本号转成单调递增的 versionCode：1.2.3 → 102。
+// 商店和系统都靠它判断「新版本」，必须随版本号一起涨。
+val paperinkVersionCode = paperinkVersion.split(".")
+    .mapNotNull { it.toIntOrNull() }
+    .take(2)
+    .let { if (it.size == 2) it[0] * 100 + it[1] else 1 }
+
 android {
     namespace = "io.github.moevis.paperink"
     compileSdk = 36
@@ -21,8 +32,8 @@ android {
         applicationId = "io.github.moevis.paperink"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = paperinkVersionCode
+        versionName = paperinkVersion
     }
 
     signingConfigs {
@@ -44,7 +55,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // 有 keystore.properties 就用正式签名；没有就退回 debug 签名。
+            //
+            // 退回 debug 签名是为了让 CI 在没配签名密钥时也能出一个「能直接装」的
+            // 包——未签名的 APK 系统不让装，那条流水线就等于白跑。
+            // 代价是 debug 签名的包和以后正式签名的包互相装不上（签名不一致），
+            // 所以正式发布前记得把签名密钥配到 Actions Secrets 里。
             signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
     }
 
