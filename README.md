@@ -1,19 +1,133 @@
 <div align="center">
 
-<img src="docs/icon.png" width="96" alt="纸印">
+<img src="docs/icon.png" width="96" alt="PaperInk">
 
-# 纸印 · paperink
+# 纸印 · PaperInk
+
+**Markdown straight onto thermal paper.**
+
+Paste some Markdown, typeset it locally into a bitmap, and send it over Bluetooth
+to the print head. No vendor app, no network, no account.
+
+<img src="docs/screenshots/editor.png" width="240" alt="Editor">
+<img src="docs/screenshots/preview.png" width="240" alt="Print preview">
+<img src="docs/screenshots/samples.png" width="240" alt="Built-in samples">
+
+</div>
+
+## What it does
+
+- **Type and preview**: paste or import `.txt` / `.md`, see the printed result immediately
+- **Real typesetting**: headings, lists, tables, code blocks, quotes, bold/italic, rules
+- **Formulas**: inline `$…$` and display `$$…$$`; fractions, radicals and scripts are
+  laid out by JLaTeXMath itself — not pictures
+- **Tuned to the paper**: 57 / 68 / 79 mm roll widths; size, spacing, density and
+  bold are four independent dials
+- **Long-press to save**: hold the preview to store the current bitmap as a PNG
+- **Bluetooth only**: no `INTERNET` permission — your text never leaves the device
+- **Two languages**: English and Chinese, following the system language
+  (Android 13+ can set it per app: Settings → Apps → PaperInk → Language)
+
+## Supported hardware
+
+Verified on a **Paperang P3 MAX** (300 dpi, 79 mm / 864 dots). Four protocols are
+built in and detected automatically:
+
+| Protocol | Where it shows up |
+|---|---|
+| Paperang (legacy) | P3 series, `0x02 … 0x03` frames |
+| CatProtocol | "Miaomiao" printers, `0x51 0x78` frames |
+| A5 | batches with a different MCU; different MTU and handshake |
+| ESC/POS raster | generic thermal printers, `GS v 0` |
+
+Other models will probably print, but they have not been tested.
+
+## Build
+
+Needs JDK 17 and Android SDK 36 (`compileSdk = 36`, `minSdk = 26`).
+
+```bash
+git clone https://github.com/moevis/paperink.git && cd paperink
+./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:testDebugUnitTest      # 23 unit tests
+```
+
+Install it on your own device:
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The `sdk.dir` in `local.properties` and the JDK path in `~/.gradle/gradle.properties`
+are machine-specific — do not commit them. Release signing uses `keystore.properties`
+in the repository root (also not committed); without it a release build is unsigned:
+
+```properties
+storeFile=/absolute/path/to/release.jks
+storePassword=…
+keyAlias=…
+keyPassword=…
+```
+
+## How the code fits together
+
+```
+Markdown text
+   │  md/MarkdownParser.kt      splits into blocks and inline elements, no layout
+   ▼
+Doc
+   │  render/PrintRenderer.kt   measures lines, draws glyphs, binarises
+   │  render/JlmMath.kt         hands formulas to JLaTeXMath
+   ▼
+Monochrome bitmap (576 / 720 / 864 dots wide)
+   │  bt/PrinterClient.kt       connects, identifies the protocol, splits packets
+   ▼
+Thermal printer
+```
+
+| Directory | What lives there |
+|---|---|
+| `bt/` | Bluetooth connection, protocol detection, four sets of print commands |
+| `md/` | Markdown → `Doc`; pure JVM, unit-testable |
+| `render/` | `Doc` → monochrome bitmap; formulas, tables and pagination |
+| `ui/` | The Compose screens, one file per screen |
+| `file/` | Import encoding detection, PNG export |
+| `samples/` | Three built-in samples, packaged as assets at build time (`samples/en/` holds the English ones) |
+
+## Known limitations
+
+- Only tested on a P3 MAX; no other model has been verified on real hardware
+- **Inline fractions are set as `a/b`**: TeX's text style shrinks numerator and
+  denominator to 0.43em, which turns to mush once a 300 dpi thermal head
+  binarises it. Write `\dfrac{}{}` for a stacked fraction — that one is left alone
+- Some lines still sit taller than the body text (the descender of the math slash)
+- Saved PNGs go to the app's private directory, not the gallery
+- The **samples** are maths notes: they demonstrate typesetting, not document
+  design
+
+## Licence
+
+Released under the **GPL-3.0**; the full text is in [LICENSE](LICENSE). It is GPL
+because the formula engine (JLaTeXMath) is GPL to begin with, and following it
+keeps the whole thing consistent.
+
+Third-party components:
+
+| Component | Licence |
+|---|---|
+| [JLaTeXMath-Android](https://github.com/noties/jlatexmath-android) | GPL-2.0 **or later**, with a Classpath exception |
+| [commonmark-java](https://github.com/commonmark/commonmark-java) | BSD-2-Clause |
+| [Lucide](https://lucide.dev) | ISC |
+| AndroidX / Jetpack Compose | Apache-2.0 |
+
+---
+
+# 中文
 
 **把 Markdown 打到热敏纸上。**
 
 粘贴一段 Markdown，本地排成位图，蓝牙直接发给打印头。
 不需要官方 App，不联网，不登录。
-
-<img src="docs/screenshots/editor.png" width="240" alt="编辑">
-<img src="docs/screenshots/preview.png" width="240" alt="打印预览">
-<img src="docs/screenshots/samples.png" width="240" alt="内置示例">
-
-</div>
 
 ## 能做什么
 
@@ -23,6 +137,7 @@
 - **按纸调**：57 / 68 / 79 mm 三档纸宽，字号、行距、浓度、加粗四档可分调
 - **长按存图**：在预览上长按，把当前位图存成 PNG
 - **只申请蓝牙权限**：没有 `INTERNET`，稿子不会离开这台机器
+- **中英双语**：跟随系统语言（Android 13+ 可单独设置：设置 → 应用 → 纸印 → 语言）
 
 ## 支持的机器
 
@@ -86,7 +201,7 @@ Doc
 | `render/` | `Doc` → 单色位图；公式、表格、分页都在这里 |
 | `ui/` | Compose 界面，一个文件管一屏 |
 | `file/` | 导入文件的编码探测、PNG 导出 |
-| `samples/` | 三个内置示例，构建时直接当 asset 打包 |
+| `samples/` | 三个内置示例，构建时直接当 asset 打包（`samples/en/` 是英文版） |
 
 ## 已知限制
 
@@ -95,7 +210,7 @@ Doc
   想要上下堆叠，写 `\dfrac{}{}`，那个不会被改写
 - 行高比正文字高一截的情况仍存在（数学字体的斜杠有下降部）
 - 保存的 PNG 在应用私有目录，没进相册
-- 界面只有中文
+- **内置示例是数学讲义**：演示的是排版能力，不是文档设计
 
 ## 许可
 
