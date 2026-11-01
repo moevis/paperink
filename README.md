@@ -50,6 +50,7 @@ Needs JDK 17 and Android SDK 36 (`compileSdk = 36`, `minSdk = 26`).
 git clone https://github.com/moevis/paperink.git && cd paperink
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:testDebugUnitTest      # 23 unit tests
+./scripts/check-size.sh               # no source file over 450 lines
 ```
 
 Install it on your own device:
@@ -76,11 +77,14 @@ Markdown text
    │  md/MarkdownParser.kt      splits into blocks and inline elements, no layout
    ▼
 Doc
-   │  render/PrintRenderer.kt   measures lines, draws glyphs, binarises
+   │  render/LayoutBuilder.kt   block layout: where every piece goes
+   │  render/InlineSpans.kt     inline markup → styled text
    │  render/JlmMath.kt         hands formulas to JLaTeXMath
+   │  render/PrintRenderer.kt   draws, binarises, packs the rows
    ▼
 Monochrome bitmap (576 / 720 / 864 dots wide)
-   │  bt/PrinterClient.kt       connects, identifies the protocol, splits packets
+   │  bt/PrinterClient.kt       connects and identifies the protocol
+   │  bt/print/                 one file per protocol
    ▼
 Thermal printer
 ```
@@ -93,6 +97,15 @@ Thermal printer
 | `ui/` | The Compose screens, one file per screen |
 | `file/` | Import encoding detection, PNG export |
 | `samples/` | Three built-in samples, packaged as assets at build time (`samples/en/` holds the English ones) |
+
+### Keeping the files small
+
+No source file is allowed to grow past **450 lines**, and CI checks it
+(`scripts/check-size.sh`, wired into the build workflow). A file that hits the
+limit is supposed to be split by responsibility — `bt/` grew from one 900-line
+class into a scanner, two links, a probe and four print protocols that way —
+rather than to keep accumulating. The point is that you can find the thing you
+are looking for without reading the whole thing first.
 
 ## Known limitations
 
@@ -160,6 +173,7 @@ Third-party components:
 git clone https://github.com/moevis/paperink.git && cd paperink
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:testDebugUnitTest      # 23 项单元测试
+./scripts/check-size.sh               # 没有源文件超过 450 行
 ```
 
 装到自己的机器上：
@@ -185,11 +199,14 @@ Markdown 文本
    │  md/MarkdownParser.kt      切成块与行内元素，不碰排版
    ▼
 Doc
-   │  render/PrintRenderer.kt   按点数算行、画字、二值化
+   │  render/LayoutBuilder.kt   块级排版：每块摆哪儿
+   │  render/InlineSpans.kt     行内标记 → 带样式的一段文字
    │  render/JlmMath.kt         公式交给 JLaTeXMath
+   │  render/PrintRenderer.kt   画字、二值化、按行打包
    ▼
 单色位图（576 / 720 / 864 点宽）
-   │  bt/PrinterClient.kt       连机器、认协议、分包发
+   │  bt/PrinterClient.kt       连机器、认协议
+   │  bt/print/                 一套协议一个文件
    ▼
 热敏打印机
 ```
@@ -202,6 +219,12 @@ Doc
 | `ui/` | Compose 界面，一个文件管一屏 |
 | `file/` | 导入文件的编码探测、PNG 导出 |
 | `samples/` | 三个内置示例，构建时直接当 asset 打包（`samples/en/` 是英文版） |
+
+### 文件不许长胖
+
+任何源文件都不许超过 **450 行**，CI 会盯着（`scripts/check-size.sh`，已接进构建流程）。
+撞了上限就按职责拆开——`bt/` 就是这么从一个 900 行的类拆成扫描、两条链路、协议探测
+加四套打印指令的——而不是继续往上堆。图的是不用先通读整个文件就能找到要看的那一段。
 
 ## 已知限制
 

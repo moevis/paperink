@@ -11,6 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 先卡行数：超线的文件直接红掉，别等评审时才发现又长回去了
+      - name: Check file sizes
+        run: ./scripts/check-size.sh
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
