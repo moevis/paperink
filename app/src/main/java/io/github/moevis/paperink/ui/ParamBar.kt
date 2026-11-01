@@ -1,15 +1,13 @@
 package io.github.moevis.paperink.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,24 +24,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,15 +59,11 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ParamBar(
     modifier: Modifier = Modifier,
-    sizeIndex: Int, onSize: (Int) -> Unit,
-    widthIndex: Int, onWidth: (Int) -> Unit,
-    mathIndex: Int, onMath: (Int) -> Unit,
-    lineIndex: Int, onLine: (Int) -> Unit,
-    threshold: Int, onThreshold: (Int) -> Unit,
-    dilate: Boolean, onDilate: (Boolean) -> Unit,
+    settings: PrintSettings,
+    onSettings: (PrintSettings) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    // 档位标签随语言走：数字是主角，"小/中/大"退到面板里的副标题
+    // 档位标签随语言走：数字是主角，小/中/大退到面板里的副标题
     val sizeLabels = stringArrayResource(R.array.size_labels)
     val sizeHints = stringArrayResource(R.array.size_hints)
     val mathLabels = stringArrayResource(R.array.math_labels)
@@ -97,27 +84,52 @@ internal fun ParamBar(
             Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ParamCell(stringResource(R.string.param_size), sizeLabels[sizeIndex], Lucide.Type, Modifier.weight(1f)) { done ->
-                ChoiceRow(sizeLabels, sizeIndex, subLabels = sizeHints) { onSize(it); done() }
-            }
-            ParamCell(stringResource(R.string.param_width), Presets.widthLabels[widthIndex], Lucide.Ruler, Modifier.weight(1f)) { done ->
+            ChoiceCell(
+                label = stringResource(R.string.param_size),
+                value = sizeLabels[settings.sizeIndex],
+                icon = Lucide.Type,
+                labels = sizeLabels,
+                subLabels = sizeHints,
+                selected = settings.sizeIndex,
+                onSelect = { onSettings(settings.copy(sizeIndex = it)) },
+            )
+            ChoiceCell(
+                label = stringResource(R.string.param_width),
+                value = Presets.widthLabels[settings.widthIndex],
+                icon = Lucide.Ruler,
+                labels = Presets.widthLabels,
                 // 毫米是纸的买法，点数是喂给打印头的实际列数——换纸为什么整篇会重排，
-                // 靠这行小字才解释得通。跟着选项一起摆，比在顶部常驻一句"864 点"有用。
-                ChoiceRow(
-                    labels = Presets.widthLabels,
-                    selected = widthIndex,
-                    fontSize = 12.sp,
-                    subLabels = widthDots,
-                ) { onWidth(it); done() }
-            }
+                // 靠这行小字才解释得通。跟着选项一起摆，比在顶部常驻一句「864 点」有用。
+                subLabels = widthDots,
+                selected = settings.widthIndex,
+                fontSize = 12.sp,
+                onSelect = { onSettings(settings.copy(widthIndex = it)) },
+            )
             // 只影响独行的 $$…$$；行内公式跟正文同号，不跟着变
-            ParamCell(stringResource(R.string.param_math), mathLabels[mathIndex], Lucide.Sigma, Modifier.weight(1f)) { done ->
-                ChoiceRow(mathLabels, mathIndex, subLabels = mathHints) { onMath(it); done() }
-            }
-            ParamCell(stringResource(R.string.param_line), lineLabels[lineIndex], Lucide.Rows3, Modifier.weight(1f)) { done ->
-                ChoiceRow(lineLabels, lineIndex, subLabels = lineHints) { onLine(it); done() }
-            }
-            ParamCell(stringResource(R.string.param_density), "$threshold", Lucide.Droplet, Modifier.weight(1f)) {
+            ChoiceCell(
+                label = stringResource(R.string.param_math),
+                value = mathLabels[settings.mathIndex],
+                icon = Lucide.Sigma,
+                labels = mathLabels,
+                subLabels = mathHints,
+                selected = settings.mathIndex,
+                onSelect = { onSettings(settings.copy(mathIndex = it)) },
+            )
+            ChoiceCell(
+                label = stringResource(R.string.param_line),
+                value = lineLabels[settings.lineIndex],
+                icon = Lucide.Rows3,
+                labels = lineLabels,
+                subLabels = lineHints,
+                selected = settings.lineIndex,
+                onSelect = { onSettings(settings.copy(lineIndex = it)) },
+            )
+            ParamCell(
+                stringResource(R.string.param_density),
+                "${settings.threshold}",
+                Lucide.Droplet,
+                Modifier.weight(1f),
+            ) {
                 // 竖着摆：面板要窄不要宽，横滑块会把弹出框撑成一条长条。
                 // 数值压在滑块**顶上**（原来在右边）——滑块本身就是「上浓下淡」的刻度，
                 // 数值贴在它头上，眼睛不用在横向来回扫，拖动时也只盯一个点。
@@ -128,16 +140,18 @@ internal fun ParamBar(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "$threshold",
+                        "${settings.threshold}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = cs.onSurface,
                     )
                     Spacer(Modifier.height(3.dp))
                     VerticalSlider(
-                        value = threshold.toFloat(),
+                        value = settings.threshold.toFloat(),
                         range = 70f..230f,
-                        onValueChange = { onThreshold(it.roundToInt()) },
+                        onValueChange = {
+                            onSettings(settings.copy(threshold = it.roundToInt()))
+                        },
                         height = 124.dp,
                         width = 44.dp,
                     )
@@ -146,11 +160,41 @@ internal fun ParamBar(
             // 加粗是开关，点一下直接切，不弹面板
             ToggleCell(
                 stringResource(R.string.param_bold),
-                if (dilate) stringResource(R.string.value_on) else stringResource(R.string.value_off),
-                on = dilate,
+                if (settings.dilate) {
+                    stringResource(R.string.value_on)
+                } else {
+                    stringResource(R.string.value_off)
+                },
+                on = settings.dilate,
                 modifier = Modifier.weight(1f),
                 icon = Lucide.Bold,
-            ) { onDilate(!dilate) }
+            ) { onSettings(settings.copy(dilate = !settings.dilate)) }
+        }
+    }
+}
+
+/**
+ * 一格「从固定几档里选一个」的参数：格子显示当前档，点开是一排选项。
+ *
+ * 六格里四格都是这个形状（字号/纸宽/公式/行距），差别只在「读哪份数组、写回哪个
+ * 字段」。以前四格各写一遍 ParamCell + ChoiceRow 的接线，加一格就得再抄一份。
+ */
+@Composable
+private fun RowScope.ChoiceCell(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    labels: Array<String>,
+    selected: Int,
+    modifier: Modifier = Modifier.weight(1f),
+    subLabels: Array<String>? = null,
+    fontSize: TextUnit = 13.sp,
+    onSelect: (Int) -> Unit,
+) {
+    ParamCell(label, value, icon, modifier) { done ->
+        ChoiceRow(labels, selected, fontSize, subLabels) {
+            onSelect(it)
+            done()
         }
     }
 }
@@ -320,74 +364,5 @@ private fun ChoiceRow(
                 }
             }
         }
-    }
-}
-
-/**
- * 竖向滑块。Material 只有横的 Slider，而浓度面板要窄不要宽，就照同一套视觉自己做：
- * 上端最浓、下端最淡，按下即跳到该点，之后跟着手指走。
- */
-@Composable
-private fun VerticalSlider(
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    height: Dp = 168.dp,
-    width: Dp = 44.dp,
-) {
-    val cs = MaterialTheme.colorScheme
-    val knobPx = with(LocalDensity.current) { 14.dp.toPx() }
-    var trackH by remember { mutableStateOf(1f) }
-    val latest = rememberUpdatedState(onValueChange)
-    val span = (range.endInclusive - range.start).takeIf { it > 0f } ?: 1f
-    val frac = ((value - range.start) / span).coerceIn(0f, 1f)
-
-    // 手指 y → 数值。轨道两端各留半个钮，钮心才够得着上下限。
-    fun valueAt(y: Float): Float {
-        val travel = (trackH - knobPx).coerceAtLeast(1f)
-        val f = 1f - ((y - knobPx / 2f) / travel).coerceIn(0f, 1f)
-        return range.start + f * span
-    }
-
-    Canvas(
-        modifier
-            .width(width)
-            .height(height)
-            .onSizeChanged { trackH = it.height.toFloat() }
-            .pointerInput(range) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    latest.value(valueAt(down.position.y))
-                    down.consume()
-                    while (true) {
-                        val ev = awaitPointerEvent()
-                        val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!ch.pressed) break
-                        latest.value(valueAt(ch.position.y))
-                        ch.consume()
-                    }
-                }
-            }
-    ) {
-        val cx = size.width / 2f
-        val top = knobPx / 2f
-        val bottom = size.height - knobPx / 2f
-        val cy = bottom - frac * (bottom - top)
-        val tw = 4.dp.toPx()
-        drawRoundRect(
-            color = cs.surfaceVariant,
-            topLeft = Offset(cx - tw / 2f, top),
-            size = Size(tw, (bottom - top).coerceAtLeast(1f)),
-            cornerRadius = CornerRadius(tw / 2f),
-        )
-        drawRoundRect(
-            color = cs.primary,
-            topLeft = Offset(cx - tw / 2f, cy),
-            size = Size(tw, (bottom - cy).coerceAtLeast(0f)),
-            cornerRadius = CornerRadius(tw / 2f),
-        )
-        drawCircle(cs.primary.copy(alpha = 0.12f), radius = 12.dp.toPx(), center = Offset(cx, cy))
-        drawCircle(cs.primary, radius = 6.dp.toPx(), center = Offset(cx, cy))
     }
 }

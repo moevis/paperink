@@ -100,18 +100,8 @@ internal fun PrintPane(
     result: PrintResult?,
     rendering: Boolean,
     desc: String,
-    threshold: Int,
-    onThreshold: (Int) -> Unit,
-    dilate: Boolean,
-    onDilate: (Boolean) -> Unit,
-    sizeIndex: Int,
-    onSize: (Int) -> Unit,
-    mathIndex: Int,
-    onMath: (Int) -> Unit,
-    lineIndex: Int,
-    onLine: (Int) -> Unit,
-    widthIndex: Int,
-    onWidth: (Int) -> Unit,
+    settings: PrintSettings,
+    onSettings: (PrintSettings) -> Unit,
     onSavePng: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -242,12 +232,8 @@ internal fun PrintPane(
             ) {
                 ParamBar(
                     modifier = Modifier.onSizeChanged { barHeight = with(density) { it.height.toDp() } },
-                    sizeIndex = sizeIndex, onSize = onSize,
-                    widthIndex = widthIndex, onWidth = onWidth,
-                    mathIndex = mathIndex, onMath = onMath,
-                    lineIndex = lineIndex, onLine = onLine,
-                    threshold = threshold, onThreshold = onThreshold,
-                    dilate = dilate, onDilate = onDilate,
+                    settings = settings,
+                    onSettings = onSettings,
                 )
             }
         }
