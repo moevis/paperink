@@ -267,9 +267,9 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
 
     if (samples) {
         SamplesDialog(
-            onPick = { smp ->
+            onPick = { smp, lang ->
                 samples = false
-                loadSample(ctx, smp.file) { md = it; result = null; tab = 0 }
+                loadSample(ctx, smp.file, lang) { md = it; result = null; tab = 0 }
             },
             onDismiss = { samples = false },
         )
