@@ -8,7 +8,6 @@ import android.text.TextPaint
 import io.github.moevis.paperink.md.Align
 import io.github.moevis.paperink.md.Block
 import io.github.moevis.paperink.md.Inl
-import io.github.moevis.paperink.md.plain
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -27,16 +26,23 @@ internal fun LayoutBuilder.table(t: Block.Table) {
         val bodyP = paint(em(0.82f))
         val headP = paint(em(0.82f), bold = true)
 
-        // 各列自然宽度 → 超宽就按比例压缩，再按最小份额兜底
+        // 各列自然宽度 → 超宽就按比例压缩，再按最小份额兜底。
+        //
+        // 宽度必须按「排出来的那串东西」量，不能拿 plain() 的纯文字量：
+        // 单元格里的公式是 ReplacementSpan，占的是一张图的位置，和它的 TeX 原文
+        // 一点关系都没有。按原文量，列会算窄，公式直接压过右边框（「一表记住」
+        // 那张表就在真机上出过界）。
         val nat = IntArray(n)
-        fun measure(cells: List<List<Inl>>, p: TextPaint) {
+        val cellSize = em(0.82f)
+        fun measure(cells: List<List<Inl>>, p: TextPaint, bold: Boolean) {
             for (i in 0 until min(n, cells.size)) {
-                val tw = p.measureText(cells[i].plain()).roundToInt() + padX * 2
+                val cs = inlineSpan(cells[i], cellSize, s, forceBold = bold)
+                val tw = widthOf(cs, p) + padX * 2
                 if (tw > nat[i]) nat[i] = tw
             }
         }
-        measure(t.head, headP)
-        t.rows.forEach { measure(it, bodyP) }
+        measure(t.head, headP, bold = true)
+        t.rows.forEach { measure(it, bodyP, bold = false) }
         val sum = nat.sum().coerceAtLeast(1)
         val colW = IntArray(n)
         if (sum <= contentW) {
@@ -91,7 +97,7 @@ internal fun LayoutBuilder.table(t: Block.Table) {
                     Align.LEFT -> Layout.Alignment.ALIGN_NORMAL
                 }
                 val l = layout(
-                    inlineSpan(inl, 13.6f, s, forceBold = ri == 0),
+                    inlineSpan(inl, cellSize, s, forceBold = ri == 0),
                     p, max(1, colW[ci] - padX * 2),
                     align = align, lh = 1.28f
                 )
@@ -142,3 +148,12 @@ internal fun LayoutBuilder.table(t: Block.Table) {
         }
         space(9f)
 }
+
+/** 量一段带 span 的文字自然有多宽：建一条不限宽的 StaticLayout，取第一行宽。 */
+private fun widthOf(cs: CharSequence, p: TextPaint): Int =
+    StaticLayout.Builder
+        .obtain(cs, 0, cs.length, p, 1 shl 20)
+        .setIncludePad(false)
+        .build()
+        .getLineWidth(0)
+        .roundToInt()

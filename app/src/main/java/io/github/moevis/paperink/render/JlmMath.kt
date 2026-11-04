@@ -121,6 +121,17 @@ private fun paren(s: String): String {
 }
 
 /**
+ * 百分号换写法。
+ *
+ * 这个引擎里 `%` 是**注释符**：`\%` 不会排成百分号，而是把后面半条公式一起吃掉。
+ * 真机上「−9.34% + 23.45% + 8.92%」只印出一个「−9.34」，分数只剩分子和横线，
+ * 而且不报错——最难查的那种。`\textpercent` 是它认的百分号写法（符号表里有）。
+ */
+internal fun percentSafe(tex: String): String =
+    if (!tex.contains('%')) tex
+    else tex.replace("\\%", "\\textpercent").replace("%", "\\textpercent")
+
+/**
  * 解析并排版一条公式。解析失败返回 null，调用方退回纯文本——别让一个错公式
  * 把整张纸打不出来。
  *
@@ -128,7 +139,7 @@ private fun paren(s: String): String {
  */
 internal fun mathIcon(tex: String, px: Float, display: Boolean): TeXIcon? {
     // 行内分式先改斜杠再排版，见 [inlineFracAsSlash]。
-    val src = if (display) tex else inlineFracAsSlash(tex)
+    val src = percentSafe(if (display) tex else inlineFracAsSlash(tex))
     val key = (if (display) "d" else "t") + px.toInt() + '\u0000' + src
     synchronized(iconCache) { iconCache[key] }?.let { return it }
     val icon = try {
