@@ -31,6 +31,8 @@
     <string name="sample_fractions_desc">Reciprocals, products, quotients, sums, reduction, mixed numbers</string>
     <string name="sample_formulas_title">Formula Typesetting Test</string>
     <string name="sample_formulas_desc">Fractions, radicals, sub/superscripts, nested formulas</string>
+    <string name="sample_returns_title">Returns and Annualizing</string>
+    <string name="sample_returns_desc">Returns, arithmetic and geometric means, converting to a one-year basis</string>
     <string name="sample_read_failed">Can\'t read this sample</string>
 
     <!-- 打印预览 -->

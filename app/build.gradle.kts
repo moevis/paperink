@@ -48,6 +48,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 调试包带 .dev 后缀：可以和手机上的正式包并排装着，免得为了试一次
+            // 调试版把正式包（连同里面的稿子和设置）卸掉——两者的签名本来就不一样，
+            // 覆盖安装必然失败。
+            applicationIdSuffix = ".dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

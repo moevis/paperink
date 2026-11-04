@@ -13,6 +13,8 @@ import java.util.Locale
  *
  * 它们同时也是这个 App 的功能说明：一份讲幂运算，一份讲分数，一份把公式的重活
  * （分式、根号、嵌套、上标里的分式）挨个排一遍——纸上对不对，一眼就看得出。
+ * 第四份是「收益率与年化」讲义：长文、多级标题、五列表格、行内与独立公式混排，
+ * 专门用来看「一整节课打出来是什么样」。
  *
  * 标题与副标题用资源 id，不写死字符串：中文界面显示中文，英文界面显示英文。
  */
@@ -22,6 +24,7 @@ internal val BUILT_IN = listOf(
     Sample(R.string.sample_powers_title, R.string.sample_powers_desc, "powers.md"),
     Sample(R.string.sample_fractions_title, R.string.sample_fractions_desc, "fractions.md"),
     Sample(R.string.sample_formulas_title, R.string.sample_formulas_desc, "formulas.md"),
+    Sample(R.string.sample_returns_title, R.string.sample_returns_desc, "returns.md"),
 )
 
 /**

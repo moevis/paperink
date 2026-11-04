@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import io.github.moevis.paperink.R
 import io.github.moevis.paperink.bt.PrinterClient
 import io.github.moevis.paperink.bt.Transport
 import io.github.moevis.paperink.bt.print.PrintJob
+import io.github.moevis.paperink.file.Incoming
 import io.github.moevis.paperink.file.savePng
 import io.github.moevis.paperink.md.MarkdownParser
 import io.github.moevis.paperink.render.PrintResult
@@ -54,7 +56,7 @@ private data class Task(val progress: Float, val label: String)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
+fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: State<Incoming?>) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val view = LocalView.current
@@ -71,8 +73,10 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
     val msgKeepPrinterOn = stringResource(R.string.msg_keep_printer_on)
     val undoLabel = stringResource(R.string.action_undo)
 
+    // 外面送进来的那一份：首次进来直接当初始文本，别先闪一下上次的稿子。
+    val firstIn = remember { incoming.value }
     var md by remember {
-        mutableStateOf(incoming?.takeIf { it.isNotBlank() } ?: prefs.text)
+        mutableStateOf((firstIn as? Incoming.Text)?.text?.takeIf { it.isNotBlank() } ?: prefs.text)
     }
     var tab by remember { mutableStateOf(0) }
     var settings by remember { mutableStateOf(prefs.printSettings()) }
@@ -100,6 +104,29 @@ fun RootScreen(client: PrinterClient, prefs: Prefs, incoming: String?) {
                 duration = SnackbarDuration.Long,
             )
             if (r == SnackbarResult.ActionPerformed) onUndo()
+        }
+    }
+
+    // App 已经开着时又从别处分享/打开一份：换掉正文，并给一次撤销——
+    // 整篇覆盖不可逆，而编辑器只有自动保存。
+    LaunchedEffect(incoming.value?.id) {
+        when (val inc = incoming.value) {
+            null -> Unit
+            // 读不到要先说一句：冷启动时它就是 firstIn，跳过「是否首次」会把提示一起跳掉。
+            is Incoming.Failed -> say(ctx.getString(R.string.msg_read_failed))
+            is Incoming.Text -> {
+                if (inc.id == firstIn?.id) return@LaunchedEffect
+                val was = md
+                md = inc.text
+                result = null
+                tab = 0
+                val msg = if (inc.name.isNullOrBlank()) {
+                    ctx.getString(R.string.msg_imported, inc.text.length)
+                } else {
+                    ctx.getString(R.string.msg_imported_named, inc.name, inc.text.length)
+                }
+                sayUndo(msg) { md = was; result = null }
+            }
         }
     }
 

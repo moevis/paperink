@@ -30,6 +30,8 @@
     <string name="sample_fractions_desc">倒数、乘除、加减、约分、带分数</string>
     <string name="sample_formulas_title">公式排版自检</string>
     <string name="sample_formulas_desc">分式、根式、上下标、嵌套公式</string>
+    <string name="sample_returns_title">收益率与年化</string>
+    <string name="sample_returns_desc">收益率、算术与几何平均、换成一年口径</string>
     <string name="sample_read_failed">读不到这份资料</string>
 
     <!-- 打印预览 -->

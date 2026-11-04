@@ -18,6 +18,8 @@ to the print head. No vendor app, no network, no account.
 ## What it does
 
 - **Type and preview**: paste or import `.txt` / `.md`, see the printed result immediately
+- **Accepts shares**: shows up in the system share sheet for text and files; open a
+  `.md` / `.txt` straight from a file manager, or share one into the app
 - **Real typesetting**: headings, lists, tables, code blocks, quotes, bold/italic, rules
 - **Formulas**: inline `$…$` and display `$$…$$`; fractions, radicals and scripts are
   laid out by JLaTeXMath itself — not pictures
@@ -57,6 +59,10 @@ Install it on your own device:
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Debug builds carry a `.dev` suffix (`io.github.moevis.paperink.dev`), so they can sit
+next to a release install — the two are signed with different keys and would
+otherwise refuse to replace each other.
 
 The `sdk.dir` in `local.properties` and the JDK path in `~/.gradle/gradle.properties`
 are machine-specific — do not commit them. Release signing uses `keystore.properties`
@@ -113,8 +119,8 @@ Thermal printer
 | `md/` | Markdown → `Doc`; pure JVM, unit-testable |
 | `render/` | `Doc` → monochrome bitmap; formulas, tables and pagination |
 | `ui/` | The Compose screens, one file per screen |
-| `file/` | Import encoding detection, PNG export |
-| `samples/` | Three built-in samples, packaged as assets at build time (`samples/en/` holds the English ones) |
+| `file/` | Files arriving from import or a share, encoding detection, PNG export |
+| `samples/` | Four built-in samples, packaged as assets at build time (`samples/en/` holds the English ones) |
 
 ## Known limitations
 
@@ -153,7 +159,9 @@ Third-party components:
 
 ## 能做什么
 
-- **编辑即预览**：粘贴、导入 `.txt` / `.md`，右边立刻看到打印出来的样子
+- **编辑即预览**：粘贴、导入 `.txt` / `.md`，立刻看到打印出来的样子
+- **能接分享**：出现在系统分享列表里，收文字也收文件；文件管理器里双击 `.md` / `.txt`
+  可以直接用本应用打开
 - **真的排版**：标题、列表、表格、代码块、引用、粗体斜体、分隔线
 - **公式**：行内 `$…$` 与独立 `$$…$$`，分式、根号、上下标由 JLaTeXMath 真排，不是图片
 - **按纸调**：57 / 68 / 79 mm 三档纸宽，字号、行距、浓度、加粗四档可分调
@@ -189,6 +197,9 @@ git clone https://github.com/moevis/paperink.git && cd paperink
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+调试包的包名带 `.dev` 后缀（`io.github.moevis.paperink.dev`），可以和正式包同时装着——
+两者签名不同，覆盖安装一定会失败，加个后缀就不用卸载重装。
 
 `local.properties` 里的 `sdk.dir` 与 `~/.gradle/gradle.properties` 里的 JDK 路径都由本机决定，
 不要提交。发版签名靠仓库根的 `keystore.properties`（同样不入库）；没有它时 release 会退回
@@ -242,8 +253,8 @@ Doc
 | `md/` | Markdown → `Doc`，纯 JVM，可单测 |
 | `render/` | `Doc` → 单色位图；公式、表格、分页都在这里 |
 | `ui/` | Compose 界面，一个文件管一屏 |
-| `file/` | 导入文件的编码探测、PNG 导出 |
-| `samples/` | 三个内置示例，构建时直接当 asset 打包（`samples/en/` 是英文版） |
+| `file/` | 导入/分享进来的文件、编码探测、PNG 导出 |
+| `samples/` | 四个内置示例，构建时直接当 asset 打包（`samples/en/` 是英文版） |
 
 ## 已知限制
 
