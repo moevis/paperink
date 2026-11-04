@@ -78,38 +78,43 @@ class PrinterClient(private val ctx: Context) {
      *   传 SPP 表示「只认串口」——这类机型降级到 BLE 等于白连。
      */
     suspend fun connect(device: BluetoothDevice, prefer: Transport? = null): Boolean =
-        ioMutex.withLock {
-            disconnectQuiet()
-            val name = try { device.name } catch (e: SecurityException) { null } ?: device.address
+        // 整段都在 IO 线程：连 socket 是阻塞调用（打印机不在线时能卡十几秒），
+        // 识别协议的握手也是。调用它的地方常常是 LaunchedEffect / rememberCoroutineScope，
+        // 那些都是主线程协程——不切线程就会喂出一个「应用无响应」。
+        withContext(Dispatchers.IO) {
+            ioMutex.withLock {
+                disconnectQuiet()
+                val name = try { device.name } catch (e: SecurityException) { null } ?: device.address
 
-            /** 接通一条链路，接着认协议、握手。握手失败也照样算连通——能读状态也是连着。 */
-            suspend fun linkUp(transport: Transport): Boolean {
-                val up = if (transport == Transport.BLE) {
-                    session.gatt.connect(device)
-                } else {
-                    session.spp.connect(device)
+                /** 接通一条链路，接着认协议、握手。握手失败也照样算连通——能读状态也是连着。 */
+                suspend fun linkUp(transport: Transport): Boolean {
+                    val up = if (transport == Transport.BLE) {
+                        session.gatt.connect(device)
+                    } else {
+                        session.spp.connect(device)
+                    }
+                    if (!up) return false
+                    session.setLink(Link(true, name, transport, null))
+                    lastAddress = device.address
+                    ProtocolProbe.identify(session, transport)
+                    return true
                 }
-                if (!up) return false
-                session.setLink(Link(true, name, transport, null))
-                lastAddress = device.address
-                ProtocolProbe.identify(session, transport)
-                return true
-            }
 
-            // 指定串口就只认串口：这类机型只有 SPP 能打印，降级到 BLE 等于白连
-            if (prefer == Transport.SPP) {
-                repeat(SPP_ATTEMPTS) { i ->
-                    if (linkUp(Transport.SPP)) return@withLock true
-                    if (i < SPP_ATTEMPTS - 1) delay(SPP_RETRY_GAP_MS)
+                // 指定串口就只认串口：这类机型只有 SPP 能打印，降级到 BLE 等于白连
+                if (prefer == Transport.SPP) {
+                    repeat(SPP_ATTEMPTS) { i ->
+                        if (linkUp(Transport.SPP)) return@withLock true
+                        if (i < SPP_ATTEMPTS - 1) delay(SPP_RETRY_GAP_MS)
+                    }
+                    Log.w(TAG, "SPP $SPP_ATTEMPTS 次都失败，退回 BLE（只能读状态，不能打印）")
                 }
-                Log.w(TAG, "SPP $SPP_ATTEMPTS 次都失败，退回 BLE（只能读状态，不能打印）")
-            }
 
-            for (t in listOf(Transport.BLE, Transport.SPP)) {
-                if (linkUp(t)) return@withLock true
+                for (t in listOf(Transport.BLE, Transport.SPP)) {
+                    if (linkUp(t)) return@withLock true
+                }
+                session.setLink(Link())
+                false
             }
-            session.setLink(Link())
-            false
         }
 
     fun disconnect() {

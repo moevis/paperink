@@ -7,7 +7,9 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 /**
@@ -21,6 +23,9 @@ internal class SppLink {
 
     companion object {
         private const val TAG = "Paperang"
+
+        /** 打印机没开/不在附近时，`connect()` 会一直挂到系统超时。到点自己关 socket 把它踢醒。 */
+        private const val CONNECT_TIMEOUT_MS = 12_000L
     }
 
     /** 收到的字节往这儿送。 */
@@ -29,15 +34,36 @@ internal class SppLink {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var socket: BluetoothSocket? = null
 
-    suspend fun connect(device: BluetoothDevice): Boolean = try {
-        val s = device.createRfcommSocketToServiceRecord(PaperangProfile.SPP)
-        s.connect()
-        socket = s
-        scope.launch { readLoop(s) }
-        true
-    } catch (e: Exception) {
-        Log.w(TAG, "SPP 连接失败: ${e.message}")
-        false
+    /**
+     * 连上串口。
+     *
+     * 这里是**阻塞**调用（RFCOMM 建链 + 读通道号），必须待在自己的 IO 线程上——
+     * 调用方常常是主线程的协程，直接跑就会把界面冻住，5 秒后系统弹「无响应」。
+     */
+    suspend fun connect(device: BluetoothDevice): Boolean = withContext(Dispatchers.IO) {
+        var sock: BluetoothSocket? = null
+        try {
+            val s = device.createRfcommSocketToServiceRecord(PaperangProfile.SPP)
+            sock = s
+            val watchdog = launch {
+                delay(CONNECT_TIMEOUT_MS)
+                // 关掉 socket 才能让阻塞中的 connect() 抛出来，否则它会一直等系统超时
+                Log.w(TAG, "SPP 连接超过 ${CONNECT_TIMEOUT_MS}ms，放弃")
+                runCatching { s.close() }
+            }
+            try {
+                s.connect()
+            } finally {
+                watchdog.cancel()
+            }
+            socket = s
+            scope.launch { readLoop(s) }
+            true
+        } catch (e: Exception) {
+            runCatching { sock?.close() }
+            Log.w(TAG, "SPP 连接失败: ${e.message}")
+            false
+        }
     }
 
     /** 写一段字节。连接断了就抛。 */
